@@ -1,0 +1,27 @@
+28 Aug 2026, 09:55 · 0 · Report
+
+Hi organizers,
+
+Thank you for the clarification in the 13 Aug update that:
+
+“ERA5T [is permitted] operationally, with final ERA5 as the retrospective proxy for historical validation, documented in the report.”
+
+I would like to clarify one specific point regarding the competition Test period (2015-09 to 2018-12).
+
+Since historical ERA5T values are later replaced by final ERA5 in the Copernicus archive, may we also use final ERA5 as a retrospective proxy for the ERA5T values that would have been operationally available for the Test rows, provided that:
+
+    we use only non-TWS ERA5 variables;
+    for a prediction row at month t, every external variable is from month t or earlier;
+    no t+1 or later information is used;
+    no GRACE or GRACE-derived TWS information is used;
+    latitude/longitude are used only to sample the ERA5 grid and are not predictive features; and
+    the ERA5 source, download procedure, variables, transformations and retrospective ERA5-for-ERA5T proxy are fully documented and reproducible.
+
+In other words, is the following treatment permitted?
+
+    Historical training/validation: final ERA5 used as the documented retrospective proxy for ERA5T.
+    Competition Test period: final ERA5 at month t or earlier used as the same documented retrospective proxy for the ERA5T data that would have been available operationally at that time.
+
+We want to make sure this interpretation is explicitly allowed before using ERA5-derived features in a submission.
+
+Thank you.

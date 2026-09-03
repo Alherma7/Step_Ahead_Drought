@@ -1,0 +1,11 @@
+7 Jul 2026, 23:25 · 1 · Report
+
+Hi everyone,
+
+We have temporarily paused this challenge after identifying a data issue that may have created unintended leakage in the competition data.
+
+To protect the fairness and integrity of the leaderboard, we are reviewing and correcting the affected data before the challenge continues.
+
+We will share the corrected data as soon as possible.
+
+Thank you to the community members who helped flag the issue, and thank you to everyone for your patience while we resolve it. We know interruptions are frustrating, but moving quickly and transparently is the right thing to do to keep the challenge fair.

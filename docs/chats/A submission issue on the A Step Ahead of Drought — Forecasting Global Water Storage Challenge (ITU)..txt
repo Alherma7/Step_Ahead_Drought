@@ -1,0 +1,26 @@
+30 Jul 2026, 17:20 · 2 · Report
+
+Hi, I need help with a submission issue on the "A Step Ahead of Drought — Forecasting Global Water Storage Challenge" (ITU).
+
+I keep getting the error "There was a problem while processing your submission" every time I try to upload my submission.csv, across multiple attempts today. My last successful submission was 2 days ago.
+
+I've thoroughly checked the file and confirmed it's valid.
+
+I've also tried different browsers, logging out and back in, and retrying several times — same error every time.
+Discussion 2 answers
+Subscribe
+User avatar
+What do you think?
+
+Send
+User avatar
+Ehimenathan
+
+Hello, have you been able to submit?
+3 Aug 2026, 08:45
+Upvotes 1
+ReplyReport
+User avatar
+Kimanijr
+
+Hello how did you resolve the issue facing the same

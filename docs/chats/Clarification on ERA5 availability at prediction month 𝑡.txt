@@ -1,0 +1,9 @@
+29 Aug 2026, 00:51 · 0 · Report
+
+The rules state that, for a prediction at calendar month t, only information available at or before t may be used, and that external operational data should be available within one month of acquisition.
+
+ERA5T would satisfy this timing but is not publicly archived for the historical challenge period; it is replaced by ERA5 Final after validation.
+
+May we use publicly available ERA5 Final values for calendar month t as a documented retrospective proxy for ERA5T, provided that no atmospheric variable after t, and no future GRACE/TWS information, is used ?
+
+We would fully document the source, variables, dates and the proxy assumption.

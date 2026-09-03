@@ -1,0 +1,6 @@
+Since the time index (t, t+1) follows GRACE observation availability rather than the calendar, the real-world gap between t and t+1 varies row to row — sometimes 1 month, sometimes several (e.g., rows where t falls before the 2017–2018 GRACE/GRACE-FO gap have a t+1 that is ~11 calendar months later).
+
+The rules state covariates must be "available at the stated prediction time." Could the organizers clarify explicitly (yes/no) what this means when t and t+1 are separated by more than one calendar month:
+
+    INTERMEDIATE-MONTH COVARIATES: For a row where t+1 is N calendar months after t, may we use non-TWS Copernicus covariates (e.g., SPEI, soil moisture) dated to the calendar months between t and t+1 — i.e., data that would have existed before t+1 in real time, even though it postdates t?
+    OR STRICT-AT-t ONLY: Is "prediction time" fixed at t itself for every row, regardless of how far t+1 is, meaning only covariates dated at or before t are permitted, and nothing from the intermediate window may be used?

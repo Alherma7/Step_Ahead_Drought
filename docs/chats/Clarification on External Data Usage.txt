@@ -1,0 +1,15 @@
+Clarification on External Data Usage
+26 Aug 2026, 19:26 · 0 · Report
+
+Hi, I’d like to confirm the rules regarding external data.
+
+Are participants allowed to use external datasets in addition to the provided competition data, as long as:
+
+    the data are freely and operationally available;
+    they would have been available at or before prediction month t;
+    they do not contain or indirectly reveal future GRACE/TWS information; and
+    their source and processing are fully documented for reproducibility?
+
+For example, would additional Copernicus / Climate Data Store / drought-observatory variables satisfying these conditions be allowed as model features?
+
+I want to confirm this explicitly before using any external data. Thank you.

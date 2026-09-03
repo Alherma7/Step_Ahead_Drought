@@ -1,0 +1,55 @@
+Hi @AJoel @meganomaly,
+
+The 13 August clarification resolved a lot. One line in it still decides whether a whole class of solutions is compliant, and it has now been asked three times — @ivarick on 22 July, @kbkb on 24 July, and again in "worries/questions" on 15 August — without an answer.
+
+The clarification says:
+
+    Permitted — "lat/lon as a lookup key — to retrieve a cell's own past TWS"
+    Not permitted — "Raw coordinates, cell IDs, coordinate-derived encodings and spatial embeddings as predictive features."
+
+Question: does the permission extend to other cells' strictly-earlier TWS?
+
+Three concrete constructs, all reading TWS only at months ≤ t:
+
+    Neighbourhood mean. The average anchor anomaly of every land cell within 500 km of the cell being predicted. The motivation is denoising, not location: GRACE's effective resolution is roughly 300 km while the grid is 1°, so adjacent cells carry nearly the same signal with largely independent noise. In our tests a 500 km average of the anchor is a better one-month predictor than the cell's own anchor (RMSE 0.637 → 0.604).
+    Local deviation. The cell's own anchor minus that neighbourhood mean.
+    A convolutional / grid-based model that takes the global TWS anomaly field at months ≤ t as an image and outputs the month t+1 field. It is never given lat/lon as a number, but it is spatial by construction.
+
+Two readings, both defensible:
+
+    A — these are "spatial embeddings" and are banned. Only a cell's own history may be used, and any convolutional or grid-based architecture is out.
+    B — the ban targets using position as an identifier (letting a model memorise which cell is which). Averaging other cells' already-observed past values is ordinary spatial filtering of legitimately available data, and is permitted.
+
+The two readings lead to completely different solutions, and rebuilding after the deadline is not possible. A one-line ruling would settle it:
+
+    Neighbouring cells' TWS at months ≤ t — permitted, or not permitted?
+
+And if the answer is not permitted: could you confirm that spatial filtering of external covariates (for example an ERA5 field averaged over a radius around the cell) remains permitted, given that the clarification explicitly allows sampling external gridded covariates by lat/lon?
+
+Thank you.
+Discussion 2 answers
+Subscribe
+User avatar
+What do you think?
+
+Send
+User avatar
+Urek
+
+Just to add to this, the question has been open since 22 July, and we’re now very close to the deadline. The two interpretations lead to completely different approaches, so a late clarification would make it difficult for participants to adjust their pipelines.
+
+Could you please clarify one point: are neighbouring cells’ TWS values at months ≤ t allowed as features, or not?
+
+I have these features implemented behind an explicit lock, but I haven’t used them in any submission while waiting for clarification. It seems several participants are in the same situation.
+19 Aug 2026, 12:45
+Upvotes 0
+ReplyReport
+User avatar
+meganomaly
+Zindi
+
+Thanks for bringing this up.
+
+Neighbouring cells’ TWS at months t or earlier is permitted. This includes spatial filtering or aggregation of past/current TWS values, such as neighbourhood means and local deviations. Spatial/grid-based models may also use the observed TWS field up to month t, provided they do not use observations from t+1 or later.
+
+Coordinates may be used to identify cells, define neighbourhoods, or sample permitted gridded data, but raw coordinates, cell IDs, or coordinate-derived encodings should not be supplied to the model as predictive features.

@@ -1,0 +1,33 @@
+Hi everyone,
+
+Since launch, we found an integrity issue in the test data and paused the competition for one day to fix it. The challenge is back live today with the original deadline unchanged.
+
+What's changed:
+
+    The gridded NetCDF files (train_features.nc, test_features.nc) have been replaced with flat CSV files: Train.csv, Test.csv, and a refreshed SampleSubmission.csv. Each row is now a single (time, lat, lon) sample with all features already as columns — no more xarray/grid indexing required.
+    You will notice TWS_t is missing for a share of test rows, flagged by a TWS_t_masked column. This is intentional, not a data error — a number of test rows are close enough in time to reveal each other's answer through this specific feature, so it's withheld exactly where that risk exists. Everywhere else, TWS_t is present and usable as before.
+    SPEI_tp1 / SOIL_MOISTURE_tp1 have been removed, since these are forward-looking (month t+1) values that would not genuinely be available at prediction time.
+    Latitude and longitude must not be used as features.
+    We have updated the starter notebook to match the new file structure.
+
+On external data: you are welcome to bring in additional publicly available satellite or reanalysis data (e.g. from Copernicus) to build your own features. The one hard rule: every feature must only use information that would genuinely have been available at prediction time t. Any feature derived from, or encoding, data from month t+1 or later — regardless of source — is not allowed. This includes reconstructing your own forward-looking version of TWS, SPEI, or soil moisture from an external source. It doesn't matter how the future information got in; if a submission depends on it, it's disqualified.
+
+What you need to do:
+
+    Re-download the data — the old NetCDF files are no longer valid.
+    Update your pipeline to read the new flat CSVs (or start from the updated starter notebook).
+    Resubmit — submissions made before today's fix have been removed, since they were scored against files that are no longer in use. The leaderboard will rebuild from new submissions only.
+
+Please note: the earlier version of the test data contained a time-based leak that made part of the hidden target derivable without genuine modeling. Any participant found to have used the leaked data, values derived from it, or any feature built from month t+1 (or later) information from any source, will be disqualified from this challenge (see Rules).
+
+Thanks for your patience — happy modeling!
+Discussion 1 answer
+Subscribe
+User avatar
+What do you think?
+
+Send
+User avatar
+lokpatchu
+
+@AJoel Could you also reset the submission counts

@@ -1,0 +1,3 @@
+Hi, can an organizer confirm if lat/lon can be used only to sample an allowed external gridded dataset, without using coordinates as model features?
+
+Also, for NOAA R2, is the current historical archive okay if we only use months that were operationally available before each prediction date? Thanks.

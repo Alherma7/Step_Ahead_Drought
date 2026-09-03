@@ -1,0 +1,8 @@
+pandas
+numpy
+scikit-learn
+matplotlib
+pytest
+
+# Add when the GIS / mapping and external-data phases start:
+# geopandas, folium or cartopy (spatial maps), cdsapi (Copernicus Climate Data Store)

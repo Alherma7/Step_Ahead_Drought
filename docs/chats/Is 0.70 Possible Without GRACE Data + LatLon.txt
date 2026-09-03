@@ -1,0 +1,3 @@
+Has anyone managed to get below 0.70 without using GRACE data or latitude/longitude features? I feel mostt people below 0.70 are using prohibited features either knowingly or unknowingly or maybe those scores are actually achievable with the allowed features.
+
+I’m curious whether this score range is realistically achievable using only the allowed competition data and features.

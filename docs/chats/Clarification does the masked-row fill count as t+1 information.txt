@@ -1,0 +1,60 @@
+Hi @AJoel @meganomaly,
+
+A clarification request on the relaunch rule, because I think it catches a construction that is probably very common on the current leaderboard, including in my own earlier submissions.
+
+The rule says: "Any feature derived from, or encoding, data from month t+1 or later — regardless of source — is not allowed."
+
+Test has 18 months. Six are fully observed (2015-09, 2016-01, 2016-06, 2016-12, 2018-07, 2018-11); the other twelve are ~99.8% masked. A natural and widely used baseline fills a masked row at month m with the mean of that grid cell's observed TWS_t across the test file.
+
+For a row at 2016-02, that mean averages 2015-09, 2016-01, 2016-06, 2016-12, 2018-07 and 2018-11 — four of which are after 2016-02. So the fill encodes TWS information from months later than t+1, taken from the test features file itself rather than from an external source.
+
+My reading is that this is caught by the rule as written, and that the only compliant use of the observed months is a strictly backward-looking anchor: for a row at month m, the last month <= m at which that cell is observed. I have rebuilt on that basis, and it costs real score — which is exactly why I would rather have it confirmed than assume.
+
+Two questions:
+
+1. Is the per-cell mean over all observed test months (i.e. including months after the row's own) disallowed under this rule?
+
+2. If so, is the strictly-backward anchor (last observed month <= m for that cell, plus the forecast horizon) acceptable?
+
+Also, minor and related: the update says latitude and longitude must not be used as features. Does that also rule out using (lat, lon) purely as a key — i.e. to look up that grid cell's own TWS_t history — as opposed to feeding lat/lon into the model as predictors? Every sensible use of TWS_t needs the cell identity.
+
+Happy to share my reproduction either way.
+
+Thanks,
+
+Peter Tinashe Mundowa
+Discussion 3 answers
+Subscribe
+User avatar
+What do you think?
+
+Send
+User avatar
+ivarick
+
+Can Zindi confirm whether latitude/longitude may be used solely as non-predictive join keys to retrieve a row's strictly past same-cell TWS anchor, while excluding all coordinate-derived model features and all later Test observations?
+13 Jul 2026, 22:36
+Upvotes 0
+ReplyReport
+User avatar
+kbkb
+
+Hi,
+
+Could anyone clarify whether we can use lat-long as features or create features? I dont seem to see anywhere on the competition page that we are not supposed to use them. Im confused as to how we would create spatial features without them😅
+16 Jul 2026, 08:34
+Upvotes 0
+ReplyReport
+User avatar
+ivarick
+
+Following up with the two exact scopes we need ruled on. Could the organizers please answer each one explicitly (yes/no)?
+
+1. SAME-CELL HISTORY KEY: May latitude/longitude be used only as an equality key to retrieve that row's own strictly earlier Train TWS history or the latest observed episode anchor at or before month t, provided latitude, longitude, cell IDs, coordinate-derived values, neighbours, and spatial encodings never enter the model?
+
+2. PUBLIC OPERATIONAL CLIMATE GRID: May latitude/longitude be used only outside the model to sample a public operational gridded climate product (for example ERA5T) at that row's location, with every sampled field dated no later than month t and no external TWS/GRACE target proxy? For historical validation, where ERA5T has since been overwritten, may the reproducible final ERA5 archive be used as its retrospective proxy?
+
+We will treat both scopes as prohibited unless they are explicitly approved. Thank you.
+22 Jul 2026, 17:46
+Upvotes 0
+ReplyReport

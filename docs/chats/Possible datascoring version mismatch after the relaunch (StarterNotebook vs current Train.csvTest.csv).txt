@@ -1,0 +1,137 @@
+Hi @AJoel @meganomaly,
+
+Thanks for the quick turnaround on the relaunch. While reconciling the new benchmark with the
+
+current data files, I found evidence that the distributed starter notebook — and possibly the
+
+scoring targets — were built from a different version of the data than what is currently
+
+downloadable.
+
+What the notebook's own executed outputs show (`StarterNotebook.ipynb` as currently
+
+distributed, no re-running needed — just read its saved outputs):
+
+1. It was executed on files named `train_features_flat_v2.csv` (200.00 MB) and
+
+`test_features_flat_v2.csv` (33.56 MB), with columns `ID` / `Target`. The currently
+
+distributed files are `Train.csv` (275.7 MB) and `Test.csv` (32.8 MB), with columns
+
+`sample_id` / `target`.
+
+2. In the notebook's printed sample rows, the SPEI (all four timescales), soil-moisture and
+
+month-encoding values match the current files exactly, but every printed TWS_t and
+
+Target value differs from the current files. Examples (first rows of each file):
+
+- Train 2002-05, cell (−55.5, −68.5): notebook TWS_t = 0.861612, current Train.csv = 0.876217;
+
+notebook Target = 0.037447, current = 0.207665.
+
+- Test 2015-09, cell (−55.5, −68.5): notebook TWS_t = −0.410037, current Test.csv = −0.373966.
+
+The differences range up to ~±0.25 in both directions — not float noise.
+
+3. The benchmark on the leaderboard (0.659470066) appears to be exactly the notebook's output —
+
+at least one participant who submitted on the relaunch evening matches it to nine digits,
+
+while an identical re-implementation of the notebook recipe built from the
+
+currently distributed files scores ≈ 0.8999.
+
+Why this matters: if the hidden scoring targets follow the notebook's ("v2") TWS processing
+
+while the downloadable Train.csv/Test.csv follow a different one, then every submission built
+
+from the current files carries a systematic penalty unrelated to model quality, and the current
+
+top scores mainly reflect when the data was downloaded. If instead the scorer follows the
+
+current files, then the displayed benchmark (and scores derived from the earlier files) are not
+
+comparable to new submissions.
+
+Could you please:
+
+1. Confirm which data version the current scoring targets correspond to;
+
+2. Re-align the starter notebook, benchmark and data files to a single version;
+
+3. Rescore or invalidate submissions made against a mismatched version, as appropriate.
+
+Thanks!
+
+Discussion 4 answers
+Subscribe
+User avatar
+What do you think?
+
+Send
+User avatar
+shafi_miakhil
+Pavia University (Italy)
+
+Before building any model, I made three deliberately model-free calibration submissions constructed entirely from the currently distributed Train.csv/Test.csv (all-zeros; last-observed TWS_t carried forward; the same with a per-horizon linear shrinkage fitted on Train.csv). Their expected scores were pre-registered from training-file statistics before upload.
+
+All three leaderboard scores are mutually consistent, but only under a single systematic correction: the covariance between the current files' TWS values and the hidden scoring targets is uniformly ~13% lower than the current files' internal structure implies, and the attenuation is the same at every forecast horizon (1 to 7 months). A genuine hydrological/period effect would generally vary with horizon; a uniform, horizon-independent attenuation is the signature of the targets being a different processing version of the same underlying field.
+
+Also consistent with this, two accounts have now matched the benchmark (0.659470066) to nine digits after the relaunch, while (per the post above) a faithful re-implementation of the notebook recipe from the current files scores ≈0.90. That is only coherent if the hidden targets still follow the notebook-era ("v2") processing rather than the current files.
+
+I can share file hashes, download timestamps, and the pre-registered predictions with the organisers.
+
+@AJoel @meganomaly could you confirm which processing version the hidden targets correspond to, and whether submissions will be rescored once data, notebook and scorer are aligned? Happy to help verify a fix.
+11 Jul 2026, 13:02
+Upvotes 0
+ReplyReport
+User avatar
+MICADEE
+LAHASCOM (Freelance)
+
+"currently distributed files scores ≈ 0.8999." @eugenius You're absolutely right, it gave 0.899886318 on lB.
+11 Jul 2026, 14:12
+Upvotes 0
+ReplyReport
+User avatar
+MICADEE
+LAHASCOM (Freelance)
+
+Hi @AJoel @meganomaly,
+
+Adding an independent data point to eugenius's and shafi_miakhil's reports above.
+
+I ran two model-free calibration submissions built entirely from the currently distributed Train.csv/Test.csv, with expected scores pre-registered from Train.csv statistics before uploading:
+
+    All-zeros: expected RMSE 0.91887 (from Train.csv's Target variance) → actual LB 1.013783 (+10.3%)
+    Last-observed TWS_t carried forward (persistence): expected RMSE 0.57241 (from Train.csv's TWS_t/Target relationship) → actual LB 0.886420 (+54.9%)
+
+The key point is the shape of this pattern, not just the magnitude: all-zeros depends only on the target's marginal variance and shows a relatively small gap, while persistence depends on the covariance between TWS_t and Target and shows a much larger gap. That's consistent with shafi_miakhil's finding of a covariance-specific attenuation rather than a simple overall scale shift — a genuine distributional or seasonal effect would generally hit these two calibration methods more similarly. Back-solving from these two ratios, the implied covariance attenuation on my end comes out to roughly 20%, which is the same order of magnitude as the ~13% figure shafi_miakhil reported from their own pre-registered calibration submissions above, though not an exact match — could be a different download snapshot, or partly ordinary train/test drift rather than purely a version issue.
+
+Happy to share the raw all-zeros and persistence submission files if that helps triangulate — straightforward baselines, nothing proprietary. Would appreciate confirmation on which data version the hidden targets follow, and whether a rescore is planned once this is resolved — a number of us are likely holding back further submissions until this is clarified.
+
+Thanks for looking into it.
+11 Jul 2026, 14:44
+Upvotes 0
+ReplyReport
+User avatar
+PeterTheAnalyst
+University of Zimbabwe
+
+Adding an independent confirmation, from a different direction to the calibration probes above.
+
+Using the all-zeros submission to pin the target's second moment on the public subset (RMSE 1.013783458 => E[y^2] = 1.027757), any submission's covariance with the hidden targets follows from its score: E[y*p] = (E[y^2] + E[p^2] - RMSE^2) / 2.
+
+Applying this to my own submissions built entirely from the current files: my starter-notebook re-implementation scores 0.899886 (E[p^2] = 0.203, implied corr 0.461), and my best current-file model scores 0.743298 (E[p^2] = 0.464, implied corr 0.680).
+
+Two things fall out. First, my re-implementation of the starter recipe on the current files scores 0.899886318 — matching @eugenius and @MICADEE to six decimals, from an independent implementation. That is three independent reproductions against a displayed benchmark of 0.659470066. Second, the gap is not a scaling problem. The optimal global rescale of my best model is c* = 1.012, worth +0.00005 — predictions from the current files are already optimally calibrated in scale and are simply less correlated with the hidden targets than the files' internal structure implies. A scale-only defect would be removable by a scalar, and it is not.
+
+The benchmark at 0.659470066 implies corr ~0.76. Nothing built from the currently distributed files gets near that, while the starter recipe on the old files reportedly lands exactly on it. Could you confirm which processing version the hidden targets correspond to, and whether a rescore is planned once data, notebook and scorer are aligned? Happy to share files and hashes.
+
+Thanks,
+
+Peter Tinashe Mundowa
+13 Jul 2026, 11:16
+Upvotes 0
+ReplyReport

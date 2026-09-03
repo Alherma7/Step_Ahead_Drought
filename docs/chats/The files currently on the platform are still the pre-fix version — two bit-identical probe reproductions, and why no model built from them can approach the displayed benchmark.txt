@@ -1,0 +1,138 @@
+10 Aug 2026, 14:18 · 1 · Report
+
+Hi @AJoel @meganomaly,
+
+Following up on the *Data Update* post and on @ikdonkoh1's comment that the leaderboard was not
+
+updated. I downloaded `Train.csv` and `Test.csv` fresh today and believe the files being served are
+
+still the pre-fix ones. Below is everything needed to verify this independently — file values, two
+
+model-free leaderboard probes, and the arithmetic that follows from them.
+
+## 1. The distributed files still carry the pre-fix values
+
+First row of `Train.csv` (`20020501_-55.5_-68.5`) and of `Test.csv` (`20150901_-55.5_-68.5`),
+
+downloaded today:
+
+| | Train `TWS_t` | Train `target` | Test `TWS_t` |
+
+|---|---|---|---|
+
+| v2 / starter-notebook outputs | 0.861612 | 0.037447 | −0.410037 |
+
+| Quoted as "current" on 11 July | 0.876217 | 0.207665 | −0.373966 |
+
+| **Downloaded today** | **0.8762168** | **0.20766512** | **−0.37396565** |
+
+Sizes are also unchanged: `Train.csv` 275.7 MiB, `Test.csv` 32.8 MiB.
+
+## 2. Two model-free probes reproduce the pre-fix numbers to nine digits
+
+Both submissions are constructed entirely from the currently distributed files, with no modelling.
+
+| Probe | Our score | Previously reported |
+
+|---|---|---|
+
+| All-zeros | **1.013783458** | 1.013783458 (@PeterTheAnalyst, 11 Jul) |
+
+| Last observed `TWS_t` carried forward (strictly backward anchor) | **0.886420231** | 0.886420 (@MICADEE, 11 Jul) |
+
+The all-zeros match means the **hidden targets are unchanged**. The persistence match means the
+
+**distributed `TWS_t` values are unchanged**. Neither side of the mismatch has moved.
+
+## 3. This is decorrelation, not a scale error — and it cannot be removed by any rescaling
+
+The all-zeros probe pins the target's second moment on the public subset exactly:
+
+`E[y²] = 1.013783458² = 1.027757`.
+
+For any submission `p`, `E[y·p] = (E[y²] + E[p²] − RMSE²) / 2`. For the persistence submission
+
+(`E[p²] = 1.019073` over the full test file) this gives correlation **0.610** with the hidden
+
+targets, and an optimal scale factor `c* ≈ 0.62`.
+
+We then submitted `0.62 × persistence` as an out-of-sample check. Predicted **0.7985**, actual
+
+**0.803528** — the small residual is the public/private subset difference.
+
+The consequence matters more than the number: **the best score obtainable from any scalar multiple
+
+of the distributed `TWS_t` is ≈ 0.8035.** The displayed benchmark, produced by the starter recipe on
+
+v2, is 0.659470066, and three participants independently reproduced 0.899886318 for that same recipe
+
+on the current files. A scale-only defect would be removable by a scalar; this is not.
+
+## 4. What this implies for the leaderboard
+
+Inverting `RMSE = √(E[y²](1 − ρ²))` gives the correlation each score requires:
+
+| Score | Required correlation with the hidden targets |
+
+|---|---|
+
+| 0.659470 (displayed benchmark, v2 starter recipe) | 0.760 |
+
+| 0.623384 (current 3rd place) | 0.789 |
+
+| 0.559588 (current 1st place) | 0.834 |
+
+| 0.886420 (persistence, current files) | 0.610 |
+
+Persistence on the distributed files reaches 0.610. On our own held-out reconstructions of the test
+
+structure, persistence correlates ≈ 0.64–0.71 with the *distributed* targets — so the distributed
+
+features lose roughly 12–15% of their correlation when scored against the hidden ones, consistently
+
+across all forecast horizons, which matches what @shafi_miakhil and @MICADEE reported in July.
+
+Working backwards, a score of 0.6234 from the current files would require correlating ≈ 0.89 with
+
+the distributed targets across a 1-to-7-month horizon mix. Single-month persistence itself only
+
+reaches ≈ 0.80. We do not believe scores in the current top range are reachable from the files being
+
+served today.
+
+## 5. Requests
+
+1. Please confirm which processing version the hidden scoring targets currently follow.
+
+2. If they follow v2, please re-upload the v2 `Train.csv` / `Test.csv` — the current download still
+
+serves the pre-fix files.
+
+3. Once data and scorer are aligned, please rescore, so that scores from before and after are
+
+comparable. Right now a participant's rank depends mostly on which snapshot they downloaded.
+
+4. Separately, @Ehimenathan and others are hitting *"There was a problem while processing your
+
+submission"* — worth checking alongside.
+
+Happy to share both probe files, file hashes and download timestamps with the organisers. They are
+
+trivial baselines, nothing proprietary, and having several people reproduce them would settle this
+
+quickly.
+
+Thanks for the continued transparency on this one.
+
+Please view it on MarkDown viewer, there are some important details and numbers.
+Discussion 1 answer
+Subscribe
+User avatar
+What do you think?
+
+Send
+User avatar
+MuhammadQasimShabbeer
+Engmatix
+
+@AJoel @meganomaly could you please look into it? It would be greate if you address this concern raise here Thanks! 

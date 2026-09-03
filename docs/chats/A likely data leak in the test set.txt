@@ -1,0 +1,53 @@
+7 Jul 2026, 20:04 ·
+
+I have been going over the data and I am now fairly confident that the test set leaks the prediction target.
+
+The setup
+
+The problem we want to solve is predicting TWS at month t+1 given the state of the world at month t. This is a hard, useful problem because in reality next month's GRACE reading doesn't exist yet at prediction time. It's the gap we're supposed to predict.
+
+What I noticed
+
+test_features.nc doesn't only include TWS_t for the current month at each prediction point. It also includes the TWS_t field for every month through to the end of the test window. Since our target for month t is TWS at t+1, and that exact quantity exists in the file as TWS_t for the next monthly slice, you can read next month's target straight off the feature grid instead of forecasting it. For most rows, the answer is literally part of the input.
+
+How I verified it
+
+    On the training set, where the labels are visible, I compared every target against TWS_t one month later at the same lat/lon. They match exactly, correlation 1.0 and identical values row for row. So "target = next month's TWS_t" isn't a loose correlation, it's the literal definition, and it reproduces every time.
+    Applying that same one-month-forward lookup to the test file, I find that ~94% of the submission rows have their target present in test_features.nc. The only rows that don't are essentially the final scored month, whose target falls in the month after the file ends, so it can't be looked up.
+    Sanity check on distributions. The looked-up values match the expected target distribution rather than looking like random noise, which is what you'd expect if they really are the labels.
+
+Why it matters
+
+In practice, someone can reach the top of the leaderboard by reading ~94% of the answers out of the provided file and only bothering to model the tiny remainder. That produces a file-lookup score, not a measure of forecast skill. More importantly, it undermines Phase 2: if the public board is decided by a lookup, it buries models that actually generalise and misleads the trustworthiness/innovation review. It also runs directly against the challenge's own rule that covariates must not "directly or indirectly include future GRACE/TWS information," since next month's TWS_t is exactly that.
+
+Possible fixes
+
+Possible fixes would be to mask or drop the future months in the test features so that no prediction row's t+1 value is present anywhere in the file, or to trim the train/test time overlap and re-score. Either way, with the future slices no longer present, the task goes back to being a real forecast.
+
+Thanks for putting this challenge together.
+Discussion 2 answers
+Subscribe
+User avatar
+What do you think?
+
+Send
+User avatar
+Semaka_Mathunyane
+University of South Africa
+
+@lokpatchu Good catch, and thanks for laying out the verification,
+
+so clearly — this tracks exactly with the target definition given in the data description (TWS at t+1 is just TWS_t one slice forward), so the leak looks structural rather than incidental.
+
+A naive groupby(lat/lon).shift(-1) on the feature stack reconstructs the label almost exactly, which matches what you found.
+7 Jul 2026, 21:09
+Upvotes 0
+ReplyReport
+User avatar
+meganomaly
+Zindi
+
+Thanks @lokpatchu. We have paused the challenge while we address this.
+7 Jul 2026, 23:22
+Upvotes 0
+ReplyReport

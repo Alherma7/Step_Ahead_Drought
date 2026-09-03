@@ -1,0 +1,19 @@
+24 Aug 2026, 14:34 · 0 · Report
+
+Hy everyone
+
+#34403 allows "non-TWS external covariates, provided each origin date is equal to or earlier than t", and explicitly cites ERA5T/ERA5 as an example. The challenge's own Overview page includes a link to the European/Global Copernicus Drought Observatory (EDO/GDO), whose download page offers several products in addition to those already in Train.csv/Test.csv. Listing them individually so that the answer is quotable:
+
+1. GDO fAPAR (VIIRS) and fAPAR Anomaly (VIIRS) — proxy for vegetation/biomass water stress.
+
+2. GDO SPI (Standardized Precipitation Index, 5 source products: GPCC/CHIRPS/ERA5/CPC/JRA-3Q, scales from 1 to 48 months) and SPEI ERA5 on scales beyond the 4 already provided (9/24/48 months).
+
+3. Soil Moisture Anomaly of the GDO Set (in addition to the single soil moisture series already present in the files).
+
+4. Seasonal GDO forecasts for exceptionally wet/dry conditions, issued monthly by 9 forecasting centers (ECCC/CMCC/DWD/ECMWF/Météo-France/JMA/UKMO/NCEP/BOM) with a lead time of 0 to 6 months — these are forecasts, not reanalyses, therefore I want to explicitly confirm: is a forecast issued in month t (covering t+1 to t+6) allowed as a resource to predict t+1, given that the language "source date equal to or earlier than t" in issue #34403 was written considering reanalysis/observational data?
+
+5. Separately, global climate indices — ENSO (ONI), Indian Ocean Dipole Mode Index (DMI), and North Atlantic Oscillation (NAO) — typically published by NOAA/other national agencies, not Copernicus, but publicly available.
+
+Note: The GDO catalog itself also lists "GRACE TWS Anomaly" along with the products above — to be clear, we are NOT asking about this; item #34403 §3 already absolutely prohibits it and we will not use it.
+
+Two questions: (a) Do items 1 through 4 (linked to Copernicus on their Overview page) and item 5 (climate indices unrelated to Copernicus) fall under the same "external covariate unrelated to TWS" allowance as ERA5, and does the forecast in item 4 require separate confirmation, given that it is forward-looking in nature? (b) According to the platform rule that external data "must be sent to Zindi for confirmation... and then appear on the data page under additional data" — does this apply to each product individually or only once for the overall category? Thank you.

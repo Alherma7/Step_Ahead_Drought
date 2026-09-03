@@ -1,0 +1,26 @@
+will the competition organizers check who in the leaderboard actually uses longitude and latitude as features in the model, or will this be checked only at the end of the competition?
+Discussion 2 answers
+Subscribe
+User avatar
+What do you think?
+
+Send
+User avatar
+slmn
+
+HI there ...
+
+There is no way for the organizers to know whether the spatial features (lon and lat) has been used or not unless they look into your code.. Look at 'SampleSubmission.csv' file, it only contains ID, and Target fields. That is what the organizers see from submissions we made
+
+But the question your raised is series. The Leaderboard doesn't reflect the true ranking, it is distorted. I assume all submissions made before the update announcement, used the spatial features, and have surely lower RMSE and higher leaderboard ranking.
+
+I just made my first submission (modeling without spatial feats). The Leaderboard is not encouraging. I know Leaderboard doesn't reflect the true position, and at the same time it doesn't encourage you to keep pushing. YOU DON'T REALLY KNOW HOW GOOD OR BAD YOUR SUBMMISIONS ARE . It is not a wise decision to say more than half way through the competition YOU ARE NOT PERMITTED TO USE THESE FEATURES .. I am not going to spend more time in this contest unless something changes ...
+18 Aug 2026, 21:40
+Upvotes 2
+ReplyReport
+User avatar
+midris
+
+Could an organizer please confirm how final eligibility will be handled for submissions made before the current coordinate-feature clarifications? Specifically, if a participant's best-scoring submission used raw latitude/longitude, cell ID, coordinate-derived encodings, or learned spatial embeddings as predictive features, must it be replaced with a compliant submission before the competition closes to remain eligible for the final ranking and prizes? Will final code review exclude noncompliant submissions even if their scores remain visible on the public leaderboard?
+
+This question is only about rule enforcement and final eligibility. It does not refer to coordinates used solely as equality keys or to define permitted neighbourhood/grid operations. Thank you.

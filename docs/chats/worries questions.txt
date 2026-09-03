@@ -1,0 +1,55 @@
+15 Aug 2026, 12:59 · 0 · Report
+
+Hi @AJoel @meganomaly,
+
+First, thank you for handling the July data issue so quickly and openly — the flat
+
+CSVs are much easier to work with than the NetCDF stack.
+
+I'd like to re-raise two questions that @ivarick asked on 22 July and @kbkb on
+
+24 July, which I don't think have been answered yet. Both change what a compliant
+
+solution looks like, and I'd much rather rebuild now than find out after the
+
+deadline.
+
+1. Reanalysis covariates dated month t+1.
+
+The relaunch note says no feature may encode data from month t+1 or later,
+
+regardless of source. At the same time, the challenge description says the time
+
+index follows GRACE availability, and that GRACE products arrive with a 2–3 month
+
+delay. So at the moment we are predicting t+1, the real-world date is roughly t+3,
+
+and a reanalysis field for calendar month t+1 would already have been published.
+
+Is the t+1 cutoff absolute in index terms, or does "available at prediction time"
+
+permit reanalysis (e.g. ERA5) for the target month, given that delay?
+
+2. Latitude and longitude as a join key.
+
+The update says lat/lon must not be used as features. Does that also exclude using
+
+them purely as an equality key — to retrieve the same cell's own earlier TWS
+
+history, or to average neighbouring cells' strictly earlier values — with no
+
+coordinate-derived quantity ever entering the model as a predictor?
+
+3. Observed test months.
+
+Confirming @PeterTheAnalyst's reading: for a row at month m, the only compliant use
+
+of the six fully observed test months is the most recent one at or before m — never
+
+a later one, and never a per-cell mean across all of them. Is that correct?
+
+Until we hear otherwise we are treating all three as prohibited and rebuilding on
+
+strictly backward-looking features only. Happy to share specifics if that helps.
+
+Thanks for putting this challenge together.

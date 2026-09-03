@@ -1,0 +1,69 @@
+13 Aug 2026, 15:14 · 0 · Report
+
+1. Scoring targets and benchmark
+
+The hidden scoring targets match the currently distributed Train.csv / Test.csv. This has been verified against the scorer. There is no version mismatch and no covariance attenuation. The leaderboard benchmark is 0.899886318, from the starter notebook on the current files. The earlier figure of 0.659470066 came from a validation setup that did not reflect test conditions and is no longer displayed.
+
+The persistence probes discussed in several threads looked inconsistent because they were measured against a one-month-ahead expectation, while most of the test set has a longer TWS lead time - see section 2. Accounting for that removes the discrepancy. The probe scores being unchanged after 13 July is likewise expected: that update changed the starter notebook and the benchmark, not the targets. The notebook and CSVs currently distributed are consistent with each other. The v2 values quoted in some threads come from an older copy of the notebook.
+
+2. Time indexing and forecast horizon
+
+t+1 is the next calendar month, for every row without exception. In Train.csv, target(t) equals TWS_t at calendar month t+1 wherever that month is present. The Info page statement that time indexing follows GRACE availability rather than calendar time is incorrect and has been removed. This is not strictly a one-month-ahead problem. TWS_t is masked on 66.5% of test rows - a row is masked whenever the same cell’s previous month is also in the test file, which is what stops one row’s target appearing as another row’s input. The most recent observed TWS for a cell can therefore be up to seven months behind the month being predicted.
+
+Only TWS_t is masked. SPEI_01_t, SPEI_03_t, SPEI_06_t, SPEI_12_t and SOIL_MOISTURE_t are present for every test row at its own month t - TWS_t is the only column containing NaN in Test.csv. Current-month climate covariates are always available.
+
+Filling masked rows:
+
+• Not permitted - that cell’s mean TWS_t over all observed test months. For a row at
+
+2016-02 that mean includes 2016-06, 2016-12, 2018-07 and 2018-11, all later than t+1.
+
+• Permitted - the strictly-backward anchor: the last observed month at or before m for that
+
+cell, plus the lead time.
+
+• Permitted - recursive forecasting, feeding your own prediction forward as an input to the
+
+next month. The restriction is on future observations, not on model output.
+
+3. Latitude / longitude, and external data
+
+Permitted:
+
+• lat/lon as a lookup key - to retrieve a cell’s own past TWS, and to sample external gridded covariates at that location.
+
+• Per-cell statistics computed from that cell’s own past TWS: climatology, variance, trend.
+
+• External non-TWS covariates, provided every source date is at or before t.
+
+• ERA5T operationally, with final ERA5 as the retrospective proxy for historical validation, documented in the report.
+
+Not permitted:
+
+• Raw coordinates, cell IDs, coordinate-derived encodings and spatial embeddings as predictive features.
+
+• External GRACE or GRACE-derived total water storage, at any date. This includes the Copernicus GDO GRACE Total Water Storage Anomaly layer, JPL / CSR / GFZ mascon products, and GRACE-trained reconstructions such as GTWS-MLrec and GRAiCE. The prohibition is absolute rather than limited to dates after t, because t differs from row to row: February 2016 is history relative to a June 2016 row and is the target of the January 2016 row. Any feature encoding month t+1 or later, from any source, remains grounds for disqualification.
+
+4. Submissions
+
+Most submissions are processing normally. If yours fails, rebuild it from SampleSubmission.csv, which is correct: 280,961 rows, two columns, IDs identical to Test.csv.
+
+5. Dataset reference
+
+The Data page has been corrected. Note:
+
+• target is a column in Train.csv; there is no separate labels file.
+
+• There are four SPEI columns, not twelve. SPEI is the Standardised Precipitation-Evapotranspiration Index.
+
+• The test file also carries TWS_t_masked; both files carry month_sin / month_cos.
+
+• Grid: 1°, 15,715 land cells, latitude −55.5 to 83.5.
+
+• Values are standardised, dimensionless anomalies — not centimetres of equivalent water height.
+
+• Train.csv covers 2002-05 to 2015-08, with some calendar months absent. Test.csv covers 2015-09 to 2018-12.
+
+6. Trustworthiness_Evaluation.pdf has being replaced.
+
+One point worth acting on now: the sustainability criterion asks for an estimate of training emissions using tools such as CodeCarbon, which measure consumption while training runs and cannot be applied afterwards. Instrument your training runs if you intend to compete for a top-10 placing.

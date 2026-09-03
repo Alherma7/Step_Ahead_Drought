@@ -1,0 +1,29 @@
+10 Aug 2026, 14:01 · 0 · Report
+
+Hi @AJoel @meganomaly,
+
+Thank you for the relaunch fix — the current Train.csv / Test.csv are internally consistent (I verified that target(t) equals TWS_t at the next calendar month exactly, including across the train/test boundary at 2015-08 → 2015-09).
+
+Two scope questions remain that materially change how we build features. Both have been raised before without an explicit ruling, so I would rather have them confirmed than guess. We will treat anything unconfirmed as prohibited.
+1. Past-dated covariates for calendar months that are not in the provided files
+
+The rule is: "every feature must only use information that would genuinely have been available at prediction time t. Any feature derived from, or encoding, data from month t+1 or later — regardless of source — is not allowed."
+
+The provided files contain covariates only for the 18 test months. Several calendar months inside the test window are absent entirely — for example 2016-04 and 2016-05.
+
+For a test row whose own month is t = 2016-06, the months 2016-04 and 2016-05 are strictly earlier than t. My reading is that non-TWS Copernicus covariates (SPEI, soil moisture, or ERA5 fields such as precipitation, temperature, soil water, snow water equivalent, runoff) dated to those months are permitted, because they are past information relative to that row's prediction time.
+
+Question 1 (yes/no): May we use externally sourced, non-TWS covariates dated to calendar months that are strictly earlier than a row's own month t, when those months are not present in the provided files?
+
+To be explicit about what we are not doing: we use no GRACE or TWS data from any external source at any date, and no GRACE-trained reconstruction product (e.g. GTWS-MLrec, GRAiCE, or the GDO_GRACE_Total_Water_Storage_Anomaly layer in the Copernicus Drought Observatory archive). Our pipeline includes an automated audit that asserts, for every feature of every row, that the latest source date used is <= t.
+2. Latitude / longitude as a join key
+
+The update states that "Latitude and longitude must not be used as features." We have removed all coordinate-derived predictors accordingly. However, using TWS_t at all requires knowing which grid cell a row belongs to.
+
+Question 2 (yes/no): May latitude and longitude be used purely as an equality key — to retrieve that same cell's own strictly-past TWS history, and to sample an external gridded covariate at that row's location — provided that no coordinate value, cell ID, coordinate-derived encoding, or spatial embedding is ever passed to the model as a predictor?
+
+Question 2b (yes/no): Under the same restriction, may we use per-cell summary statistics computed only from that cell's own strictly-past TWS observations — for example its monthly climatology, its variance, or its recent trend — as predictors?
+
+If the answer to 2b is no, could you clarify whether TWS_t itself may be used at all, since any per-cell time-series feature is by construction cell-specific?
+
+Thanks very much for the clarifications, and for the transparency throughout the relaunch.

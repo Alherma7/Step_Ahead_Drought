@@ -1,0 +1,42 @@
+13 Jul 2026, 14:42 · 2 · Report
+
+📢 Hi Zindians,
+
+Thank you for the thorough and well-documented analyses of the data mismatch—you were correct. The starter notebook was built using a version of the data (v2) that differed from the files ultimately uploaded to the platform. Specifically, the TWS_t values and targets in the notebook's saved outputs did not correspond to the current Train.csv and Test.csv files. We sincerely apologise for the confusion this has caused.
+
+We have now resolved the issue and uploaded the correct files to the platform. The starter notebook has also been updated to reflect the current data files.
+
+Here is a summary of what has been addressed:
+
+✅ The data files (Train.csv and Test.csv) are now consistent with the scoring targets.
+
+✅ The starter notebook has been re-executed using the correct files, and its saved outputs now reflect the current data.
+
+✅ The benchmark score on the leaderboard has been updated accordingly.
+
+🔄 Submissions made against the mismatched version will be re-evaluated, and the leaderboard will be updated accordingly.
+
+Once again, thank you for taking the time to investigate and document this issue so clearly.
+
+🚀 Happy coding!
+Discussion 2 answers
+Subscribe
+User avatar
+What do you think?
+
+Send
+User avatar
+ikdonkoh1
+
+Thank you but the leaderboard is not updated
+13 Jul 2026, 14:52
+Upvotes 5
+ReplyReport
+User avatar
+Ehimenathan
+
+Thank you. I have been trying to submit but I keep getting this "There was a problem while processing your submission".
+
+4 Aug 2026, 00:39
+Upvotes 0
+ReplyReport

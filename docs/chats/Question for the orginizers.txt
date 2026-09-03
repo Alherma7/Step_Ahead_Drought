@@ -1,0 +1,10 @@
+Question for the orginizers
+22 Jul 2026, 17:47 · 0 · Report
+
+Could the organizers please answer each one explicitly (yes/no)?
+
+1. SAME-CELL HISTORY KEY: May latitude/longitude be used only as an equality key to retrieve that row's own strictly earlier Train TWS history or the latest observed episode anchor at or before month t, provided latitude, longitude, cell IDs, coordinate-derived values, neighbours, and spatial encodings never enter the model?
+
+2. PUBLIC OPERATIONAL CLIMATE GRID: May latitude/longitude be used only outside the model to sample a public operational gridded climate product (for example ERA5T) at that row's location, with every sampled field dated no later than month t and no external TWS/GRACE target proxy? For historical validation, where ERA5T has since been overwritten, may the reproducible final ERA5 archive be used as its retrospective proxy?
+
+We will treat both scopes as prohibited unless they are explicitly approved. Thank you.
