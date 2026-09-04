@@ -13,11 +13,13 @@ practice project for **data visualization, GIS, regression, and feature engineer
 - Train: 2,154,021 rows (2002-05 to 2015-08). Test: 280,961 rows, 18 months, of which
   **~66.5% of `TWS_t` is masked** (see `TWS_t_masked` in Test.csv).
 - Leaderboard leader's score (reported 2026-09-03): **0.559 RMSE**.
-- **Our first real submission scored 0.7822 RMSE** (2026-09-03) — see Progress log
-  and `notebooks/05_leaderboard_gap_investigation.ipynb` for why this came in much
-  worse than the internal validation number we had at the time (0.5994), and what
-  the corrected internal proxy metric now is (0.6532, via
-  `evaluate.horizon_matched_split`).
+- **Best real submission so far: 0.7778 RMSE** (2026-09-04, with seasonal
+  climatology). First real submission scored 0.7822 (2026-09-03) — see Progress
+  log and `notebooks/05_leaderboard_gap_investigation.ipynb` for why that came in
+  much worse than the internal validation number at the time (0.5994). Current
+  internal proxy metric (honest, horizon-matched): **0.6505 RMSE**, via
+  `evaluate.horizon_matched_split` — still a real, only partly-understood gap to
+  the true leaderboard score; see Progress log's 2026-09-04 entries.
 
 ## Competition constraints (binding — read before adding any feature)
 
@@ -122,6 +124,35 @@ Run tests: `pytest`
   Residual gap (0.6532 vs 0.7822) is plausibly genuine 2016-2018 distribution
   shift that Train.csv (ending 2015-08) can't be validated against directly.
   `src/train.py` now reports both the old (reference-only) and honest metrics.
+- 2026-09-04 — `notebooks/06_long_horizon_features.ipynb`: built and validated two
+  techniques aimed at the long-horizon regime (seasonal climatology mean + z-score
+  deviation per cell/calendar-month, source: a DrivenData streamflow-forecasting
+  winner write-up; a long-window per-cell trend slope, leakage-safe design pattern
+  sourced from featuretools' `RollingTrend` gap/window docs, implemented in plain
+  pandas - featuretools itself evaluated and not adopted, see RESOURCES.md).
+  **Mixed result, not a clean win**: every climatology variant improves RMSE and
+  R2 (climatology+trend combined: RMSE 0.6532 -> 0.6463, 1.06%, this project's
+  second-largest single-change win) and specifically helps the long-horizon
+  bucket (0.7048 -> 0.6953), but regresses MAE ~1.4-1.7% consistently across
+  every variant - a real trade-off, not noise. Trend alone is a clean loss; it
+  only helps in combination with climatology. Given the already-known,
+  unexplained gap between `horizon_matched_split` and the real leaderboard
+  (0.6532 vs 0.7822), decided to defer the graduation call to real Zindi scores
+  rather than the internal proxy alone: generated 3 candidate submission files
+  (`outputs/submission_climatology.csv`, `submission_trend.csv`,
+  `submission_climatology_trend.csv`) to upload and compare (5/day, 200 total
+  limit - `docs/rules.txt`).
+- 2026-09-04 — **All 3 real Zindi scores back**: climatology alone **0.7778**
+  (beats the prior best 0.7822 by 0.56%), trend alone 0.7834 (worse), climatology
+  + trend combined 0.7845 (worse than baseline AND worse than trend alone). The
+  internal proxy had ranked climatology+trend combined as best (1.06%
+  improvement) - the real leaderboard inverted that entirely, though it agreed on
+  each feature's *individual* sign (climatology helps, trend hurts). **Graduated:
+  `src/features.py::add_seasonal_climatology_features`** (mean + z-score
+  deviation only, TDD - 5 new unit tests in `tests/test_features.py`), wired into
+  `src/train.py`. Trend is a confirmed negative result, not graduated.
+  `outputs/submission.csv` regenerated with climatology included (honest-metric
+  RMSE now 0.6505, reproducing the notebook's number exactly).
 
 ## Next steps
 
@@ -141,9 +172,11 @@ Run tests: `pytest`
       overall, 13.6% on masked rows, 0% change on observed rows. Graduated to
       `src/features.py`, wired into `src/train.py`, `outputs/submission.csv`
       regenerated with it.
-- [ ] Feature engineering: own-cell TWS/SPEI history (lags, rolling stats,
-      climatology) — validate each in notebook before graduating to
-      `src/features.py`.
+- [x] Feature engineering: own-cell TWS/SPEI history (lags, rolling stats,
+      climatology) — **partially done**. Climatology graduated (see 2026-09-04
+      entries below); a TWS trend/rolling-stat variant was tried and rejected
+      (confirmed negative on the real leaderboard). SPEI/soil-moisture lags not
+      yet tried — see Next steps.
 - [x] Feature engineering: spatial neighbourhood aggregates (GIS component).
       **Won** (`notebooks/04_spatial_neighbour_features.ipynb`): 1.3% RMSE
       improvement. Graduated to `src/features.py`, wired into `src/train.py`.
@@ -152,10 +185,14 @@ Run tests: `pytest`
       Progress log) — the internal proxy metric is now 0.6532 via
       `evaluate.horizon_matched_split`. **Use this metric, not the old pooled
       one, to gate every feature from here on.**
-- [ ] Feature engineering for long forecast horizons specifically (10-40 months,
-      78% of Test.csv): seasonal climatology, longer-window trends per cell —
-      persistence/neighbour-style signals decay fastest with horizon, so this is
-      the natural next lever now that the metric honestly reflects deployment.
+- [x] Feature engineering for long forecast horizons specifically (10-40 months,
+      78% of Test.csv): seasonal climatology, longer-window trends per cell.
+      Built and validated in `notebooks/06_long_horizon_features.ipynb` — mixed
+      result (wins RMSE/R2, regresses MAE, see Progress log). Not graduated yet.
+- [x] Upload `outputs/submission_climatology.csv`, `submission_trend.csv`,
+      `submission_climatology_trend.csv` to Zindi and compare real leaderboard
+      scores. **Climatology won (0.7822 → 0.7778), graduated.** Trend lost
+      standalone and combined — confirmed negative result, not graduated.
 - [ ] External data phase: Copernicus/ERA5 ingestion module + per-feature
       source-date audit, once the provided-columns pipeline is validated.
 - [ ] Hyperparameter tuning (random search) — after feature work, not before.

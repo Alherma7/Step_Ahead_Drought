@@ -68,9 +68,54 @@ one of these in its docstring.
   project's current honest internal proxy metric; use it, not the plain split, to
   gate future features.
 
+- **`notebooks/06_long_horizon_features.ipynb`**
+  Why: built and validated seasonal climatology (mean + z-score deviation) and a
+  long-window per-cell trend slope, targeting the long-horizon regime identified in
+  notebook 05. Mixed result against `horizon_matched_split`: every climatology
+  variant improved RMSE and R2 but regressed MAE ~1.4-1.7% consistently - a real
+  trade-off, not noise - so this project deferred the graduation call to real Zindi
+  submissions rather than the internal proxy alone (project decision, 2026-09-04).
+  **Real leaderboard results (2026-09-04):** climatology alone 0.7778 RMSE (beats
+  the prior best of 0.7822 by 0.56% - graduated to
+  `src/features.py::add_seasonal_climatology_features`, unit-tested, wired into
+  `src/train.py`); trend alone 0.7834 (worse than baseline); climatology+trend
+  combined 0.7845 (worse than baseline AND worse than trend alone - confirmed
+  anti-synergy). The internal proxy had predicted climatology+trend combined as
+  the best option (1.06% improvement) - the real leaderboard inverted that
+  ranking entirely, validating the decision not to trust the proxy's *interaction
+  effects* even though its individual-feature signs were directionally right.
+  Trend is a confirmed negative result, not graduated.
+
+## Comparable projects
+
+- **DrivenData seasonal streamflow forecasting - winner write-up**
+  (`docs/DrivenData - Seasonal streamflow forecasting winner writeup.pdf` - a
+  different DrivenData hydrology competition, not this one)
+  Why: source of the z-score/"deviation" design - `(value - group_mean) / group_std`,
+  grouped by site and time-of-year - used in
+  `notebooks/06_long_horizon_features.ipynb`'s `tws_climatology_deviation`. The
+  winner's own static features (lat/lon/elevation/site_id as direct model inputs) are
+  NOT applicable here - they would violate `config.FORBIDDEN_MODEL_FEATURES`.
+
+- **featuretools time series guide** (https://featuretools.alteryx.com/en/v1.31.0/guides/time_series.html)
+  Why: source of the `gap`/`window_length` design pattern (exclude the current/future
+  observations from a rolling aggregate) used in
+  `notebooks/06_long_horizon_features.ipynb`'s long-window trend feature. The library
+  itself was evaluated and not adopted (project decision, 2026-09-04): it targets
+  relational multi-table entity sets via Deep Feature Synthesis, and this project is a
+  single flat panel table - modelling an EntitySet for two features was judged not
+  worth the dependency. Implemented in plain pandas instead, consistent with the rest
+  of `src/features.py`.
+
+## Textbooks
+
+- **Hyndman & Athanasopoulos, *Forecasting: Principles and Practice*** (https://otexts.com/fpp3/)
+  Why: standard reference for the seasonal-naive/climatology forecasting method -
+  source for `tws_climatology_mean` in `notebooks/06_long_horizon_features.ipynb`
+  (each cell's mean `TWS_t` for the same calendar month in all strictly earlier
+  years).
+
 ## Pending (add before use)
 
-- Own-cell historical/lag features (TWS/SPEI trends, climatology): not yet sourced or
-  attempted.
 - Random search vs. grid search for hyperparameter tuning: Bergstra & Bengio, JMLR 2012
   ("Random Search for Hyper-Parameter Optimization") - cite in full once tuning starts.

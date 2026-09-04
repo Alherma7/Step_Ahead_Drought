@@ -72,7 +72,7 @@ def horizon_matched_split(
     time_train_val_split's pooled RMSE (0.5994) was a poor predictor of the real
     leaderboard score (0.7822): validation RMSE nearly doubled in variance terms for
     the longest-horizon 25% of rows (0.494 -> 0.732), and Test.csv is
-    disproportionately long-horizon (94.5% of rows >=10 months from the training
+    disproportionately long-horizon (77.7% of rows >=10 months from the training
     cutoff) relative to a plain chronological split, which pools horizons much more
     evenly.
     """

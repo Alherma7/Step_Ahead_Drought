@@ -4,6 +4,7 @@ import pytest
 
 from src.features import (
     add_neighbourhood_features,
+    add_seasonal_climatology_features,
     backward_fill_tws,
     build_spatial_adjacency,
     fill_masked_tws,
@@ -130,3 +131,69 @@ def test_add_neighbourhood_features_is_nan_for_an_isolated_cell():
     out = add_neighbourhood_features(df, cell_id, adjacency, n_cells)
     assert out["tws_neighbour_mean"].isna().all()
     assert out["tws_local_deviation"].isna().all()
+
+
+def _monthly_series(lat, lon, month_values):
+    # month_values: list of (year, month, value) for a single (lat, lon) cell.
+    return pd.DataFrame({
+        "lat": [lat] * len(month_values),
+        "lon": [lon] * len(month_values),
+        "time": pd.to_datetime([f"{y}-{m:02d}-01" for y, m, _ in month_values]),
+        "TWS_t": [v for _, _, v in month_values],
+    })
+
+
+def test_seasonal_climatology_mean_uses_only_strictly_earlier_years():
+    # Same cell, same calendar month (January) across three years.
+    df = _monthly_series(1.0, 1.0, [(2020, 1, 1.0), (2021, 1, 3.0), (2022, 1, 5.0)])
+    out = add_seasonal_climatology_features(df)
+
+    assert np.isnan(out.loc[0, "tws_climatology_mean"])  # no earlier January at all
+    assert out.loc[1, "tws_climatology_mean"] == 1.0  # only 2020 precedes it
+    assert out.loc[2, "tws_climatology_mean"] == 2.0  # mean(2020, 2021) = mean(1.0, 3.0)
+
+
+def test_seasonal_climatology_ignores_other_calendar_months():
+    df = pd.concat([
+        _monthly_series(1.0, 1.0, [(2020, 1, 1.0), (2021, 1, 3.0)]),
+        _monthly_series(1.0, 1.0, [(2020, 2, 100.0)]),  # different month, same cell
+    ], ignore_index=True)
+    out = add_seasonal_climatology_features(df)
+
+    row = out[out["time"] == pd.Timestamp("2021-01-01")].iloc[0]
+    assert row["tws_climatology_mean"] == 1.0  # unaffected by the February value
+
+
+def test_seasonal_climatology_is_per_cell():
+    df = pd.concat([
+        _monthly_series(1.0, 1.0, [(2020, 1, 1.0), (2021, 1, 999.0)]),
+        _monthly_series(2.0, 2.0, [(2020, 1, 7.0), (2021, 1, 9.0)]),
+    ], ignore_index=True)
+    out = add_seasonal_climatology_features(df)
+
+    cell_b_2021 = out[(out["lat"] == 2.0) & (out["time"] == pd.Timestamp("2021-01-01"))].iloc[0]
+    assert cell_b_2021["tws_climatology_mean"] == 7.0  # not contaminated by cell A's 1.0/999.0
+
+
+def test_seasonal_climatology_deviation_matches_standardised_formula():
+    df = _monthly_series(1.0, 1.0, [(2020, 1, 1.0), (2021, 1, 3.0), (2022, 1, 5.0)])
+    out = add_seasonal_climatology_features(df)
+
+    row = out.loc[2]
+    expected_mean = 2.0  # mean(1.0, 3.0)
+    expected_std = np.std([1.0, 3.0], ddof=1)  # sample std, matches pandas .std()
+    expected_deviation = (5.0 - expected_mean) / expected_std
+    assert row["tws_climatology_mean"] == expected_mean
+    assert row["tws_climatology_std"] == pytest.approx(expected_std)
+    assert row["tws_climatology_deviation"] == pytest.approx(expected_deviation)
+
+
+def test_seasonal_climatology_deviation_is_nan_with_fewer_than_two_prior_years():
+    # Only one prior January (2020) precedes 2021's row - std is undefined, not zero.
+    df = _monthly_series(1.0, 1.0, [(2020, 1, 1.0), (2021, 1, 3.0)])
+    out = add_seasonal_climatology_features(df)
+
+    row = out.loc[1]
+    assert row["tws_climatology_mean"] == 1.0
+    assert np.isnan(row["tws_climatology_std"])
+    assert np.isnan(row["tws_climatology_deviation"])

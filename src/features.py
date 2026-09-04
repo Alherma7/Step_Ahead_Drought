@@ -16,6 +16,14 @@ placeholder on every metric component (see that notebook's Gate decision).
 build_spatial_adjacency()/add_neighbourhood_features() graduated from
 notebooks/04_spatial_neighbour_features.ipynb after a 1.3% RMSE improvement
 with no regression on MAE/R2.
+add_seasonal_climatology_features() graduated from
+notebooks/06_long_horizon_features.ipynb after a real Zindi leaderboard
+improvement (0.7822 -> 0.7778 RMSE), despite a regression on the internal MAE
+diagnostic - see that notebook's Gate decision and RESOURCES.md for why the
+real leaderboard score, not the internal proxy, drove this graduation. The
+long-window trend feature explored in the same notebook was NOT graduated -
+confirmed negative result, worse standalone and worse combined with
+climatology on the real leaderboard (0.7834 and 0.7845 respectively).
 """
 import numpy as np
 import pandas as pd
@@ -164,3 +172,45 @@ def add_neighbourhood_features(
     out[config.NEIGHBOUR_MEAN_COL] = neighbour_mean
     out[config.LOCAL_DEVIATION_COL] = out[config.TWS_COL] - out[config.NEIGHBOUR_MEAN_COL]
     return out.drop(columns=["_cell_idx"])
+
+
+def add_seasonal_climatology_features(df: pd.DataFrame) -> pd.DataFrame:
+    """Add each row's per-cell seasonal climatology: the mean/std of that cell's own
+    TWS_t in the same calendar month across all strictly earlier years, plus a
+    standardised deviation from it.
+
+    A calendar month occurs once per year, so "all earlier years' same month" is
+    automatically < t - no explicit gap parameter needed, unlike a same-resolution
+    rolling window. Cells with no earlier occurrence of that month (typically a
+    cell's first year in the dataset) get NaN, left for the pipeline's median
+    imputer. To include a test row's own earlier test-period history (not just
+    Train.csv), call this on a concatenated frame and slice the result - the same
+    pattern backward_fill_tws/fill_masked_tws use.
+
+    Source (climatology mean): Hyndman & Athanasopoulos, "Forecasting: Principles
+    and Practice" (seasonal-naive/climatology method). Source (standardised
+    deviation design): a DrivenData seasonal-streamflow-forecasting competition
+    winner write-up (docs/DrivenData - Seasonal streamflow forecasting winner
+    writeup.pdf) - z-scoring a physical measurement by location and time-of-year.
+
+    Validated in notebooks/06_long_horizon_features.ipynb: real Zindi leaderboard
+    RMSE improved 0.7822 -> 0.7778 despite a regression on the internal MAE
+    diagnostic - graduated on the real leaderboard result, not the internal proxy
+    (see that notebook's Gate decision).
+    """
+    out = df.copy()
+    ordered = out.sort_values([config.LAT_COL, config.LON_COL, config.TIME_COL])
+    month = ordered[config.TIME_COL].dt.month
+    grp = ordered.groupby([ordered[config.LAT_COL], ordered[config.LON_COL], month])[config.TWS_COL]
+    clim_mean = grp.transform(lambda s: s.expanding().mean().shift(1))
+    clim_std = grp.transform(lambda s: s.expanding().std().shift(1))
+
+    out[config.CLIMATOLOGY_MEAN_COL] = clim_mean.reindex(out.index)
+    out[config.CLIMATOLOGY_STD_COL] = clim_std.reindex(out.index)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        deviation = (
+            (out[config.TWS_COL] - out[config.CLIMATOLOGY_MEAN_COL])
+            / out[config.CLIMATOLOGY_STD_COL]
+        )
+    out[config.CLIMATOLOGY_DEVIATION_COL] = deviation.replace([np.inf, -np.inf], np.nan)
+    return out

@@ -12,6 +12,7 @@ def get_feature_cols(df) -> list[str]:
     available = set(df.columns)
     cols = config.BASE_FEATURE_COLS + [c for c in config.OPTIONAL_FEATURE_COLS if c in available]
     cols += [c for c in config.NEIGHBOURHOOD_FEATURE_COLS if c in available]
+    cols += [c for c in config.CLIMATOLOGY_FEATURE_COLS if c in available]
     return cols
 
 
@@ -30,6 +31,15 @@ def main() -> None:
     cell_id, adjacency, n_cells = features.build_spatial_adjacency(cell_index)
     train = features.add_neighbourhood_features(train, cell_id, adjacency, n_cells)
     test_filled = features.add_neighbourhood_features(test_filled, cell_id, adjacency, n_cells)
+
+    # Seasonal climatology needs each cell's cross-year history, so test rows must see
+    # Train.csv's history too - concatenate, compute, then split back apart (same
+    # pattern as fill_masked_tws above).
+    n_train = len(train)
+    combined = pd.concat([train, test_filled], ignore_index=True)
+    combined = features.add_seasonal_climatology_features(combined)
+    train = combined.iloc[:n_train].reset_index(drop=True)
+    test_filled = combined.iloc[n_train:].reset_index(drop=True)
 
     feature_cols = get_feature_cols(train)
     print(f"Feature columns: {feature_cols}")
