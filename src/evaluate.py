@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
-from src import config
+from src import config, features
 
 
 def rmse(y_true, y_pred) -> float:
@@ -81,3 +81,89 @@ def horizon_matched_split(
     horizons = compute_horizons(cutoff, val_df[config.TIME_COL])
     matched = val_df[horizons.isin(target_horizons).to_numpy()].reset_index(drop=True)
     return fit_df, matched
+
+
+def measure_masking_pattern(test_df: pd.DataFrame) -> tuple[float, float]:
+    """Measure Test.csv's real TWS_t masking pattern as (masked_month_fraction,
+    masked_row_fraction): the share of months that are (near-)fully masked, and the
+    average masked-row share within just those months.
+
+    Source: notebooks/01_eda.ipynb - Test.csv's masking is bimodal, not a uniform
+    66.5% per month: some months are ~0% masked, others >99.5%. A month counts as
+    "masked" here if more than half its rows are masked - comfortably separates the
+    two modes without hardcoding an exact threshold like 99.5%.
+    """
+    per_month = test_df.groupby(config.TIME_COL)[config.TWS_MASKED_COL].mean()
+    masked_months = per_month[per_month > 0.5]
+    masked_month_fraction = len(masked_months) / len(per_month)
+    masked_row_fraction = float(masked_months.mean()) if len(masked_months) else 0.0
+    return masked_month_fraction, masked_row_fraction
+
+
+def simulate_masking(
+    df: pd.DataFrame,
+    masked_month_fraction: float,
+    masked_row_fraction: float,
+    seed: int = config.RANDOM_STATE,
+) -> pd.DataFrame:
+    """Simulate Test.csv's bimodal TWS_t masking pattern on any dataframe with known
+    true values (e.g. a validation split), so a validation metric can be computed
+    under the same masked-input regime the model faces at real inference time
+    instead of on fully-observed data.
+
+    Source: notebooks/03_masked_tws_fill.ipynb, generalised with parameters from
+    measure_masking_pattern instead of hardcoded literals. Randomly designates
+    masked_month_fraction of df's unique months as "masked months", then masks
+    masked_row_fraction of their rows' TWS_t (set to NaN). Deterministic given seed.
+    """
+    rng = np.random.RandomState(seed)
+    out = df.copy()
+    months = np.sort(out[config.TIME_COL].unique())
+    n_masked_months = round(len(months) * masked_month_fraction)
+    masked_months = (
+        set(rng.choice(months, size=n_masked_months, replace=False))
+        if n_masked_months else set()
+    )
+
+    is_masked_month = out[config.TIME_COL].isin(masked_months)
+    row_mask = (is_masked_month & (rng.random_sample(len(out)) < masked_row_fraction)).to_numpy()
+    out.loc[row_mask, config.TWS_COL] = np.nan
+    return out
+
+
+def mask_aware_horizon_matched_split(
+    raw_train: pd.DataFrame,
+    target_horizons: set[int],
+    masked_month_fraction: float,
+    masked_row_fraction: float,
+    val_fraction: float = 0.2,
+    seed: int = config.RANDOM_STATE,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """horizon_matched_split, but the validation half additionally gets Test.csv's
+    real TWS_t masking pattern simulated onto it (simulate_masking) before the
+    derived-feature pipeline (features.build_all_features) runs - so validation
+    reflects the masked-input regime the model actually faces at ~66.5% of real
+    Test.csv rows, not fully-observed data like the plain horizon_matched_split.
+
+    Source: project decision, 2026-09-04, after seasonal-climatology/trend
+    graduation - horizon_matched_split alone still validated every feature on
+    fully-observed TWS_t, the opposite of Test.csv's dominant regime, which is
+    suspected of inverting the climatology+trend interaction ranking on the real
+    leaderboard (see notebooks/07_mask_aware_validation.ipynb for the fix's own
+    validation).
+
+    `raw_train` must be RAW - not already run through build_all_features - since
+    masking must happen before derived features are computed from TWS_t, exactly
+    mirroring Test.csv's own pipeline order (masked in the raw file, features
+    computed after). Pass measure_masking_pattern(test)'s output as
+    masked_month_fraction/masked_row_fraction to match Test.csv's real pattern.
+    """
+    fit_raw, val_raw = time_train_val_split(raw_train, val_fraction)
+    cutoff = fit_raw[config.TIME_COL].max()
+    horizons = compute_horizons(cutoff, val_raw[config.TIME_COL])
+    val_matched_raw = val_raw[horizons.isin(target_horizons).to_numpy()].reset_index(drop=True)
+
+    val_masked_raw = simulate_masking(
+        val_matched_raw, masked_month_fraction, masked_row_fraction, seed
+    )
+    return features.build_all_features(fit_raw, val_masked_raw)

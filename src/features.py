@@ -214,3 +214,36 @@ def add_seasonal_climatology_features(df: pd.DataFrame) -> pd.DataFrame:
         )
     out[config.CLIMATOLOGY_DEVIATION_COL] = deviation.replace([np.inf, -np.inf], np.nan)
     return out
+
+
+def build_all_features(
+    history_df: pd.DataFrame, target_df: pd.DataFrame
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Run this project's full derived-feature pipeline - masked-TWS_t fill, spatial
+    neighbourhood, seasonal climatology - identically for any (history, target) pair.
+
+    Extracted from src/train.py so that the exact same feature computation used for
+    (Train.csv, Test.csv) at submission time can also be used for (fit, validation)
+    splits during evaluation - see evaluate.py's mask-aware validation, which needs
+    validation-set features computed the same way Test.csv's are (after masking and
+    backward-fill), not from history_df/target_df's original, fully-observed columns.
+    `history_df` is assumed already fully observed (e.g. Train.csv, or a fit split -
+    never masked); `target_df` may have masked/missing TWS_t rows.
+    """
+    target_filled = fill_masked_tws(history_df, target_df)
+
+    cell_index = (
+        pd.concat([history_df[[config.LAT_COL, config.LON_COL]],
+                   target_df[[config.LAT_COL, config.LON_COL]]])
+        .drop_duplicates()
+    )
+    cell_id, adjacency, n_cells = build_spatial_adjacency(cell_index)
+    history_nb = add_neighbourhood_features(history_df, cell_id, adjacency, n_cells)
+    target_nb = add_neighbourhood_features(target_filled, cell_id, adjacency, n_cells)
+
+    n_history = len(history_nb)
+    combined = pd.concat([history_nb, target_nb], ignore_index=True)
+    combined = add_seasonal_climatology_features(combined)
+    history_out = combined.iloc[:n_history].reset_index(drop=True)
+    target_out = combined.iloc[n_history:].reset_index(drop=True)
+    return history_out, target_out

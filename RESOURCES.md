@@ -86,6 +86,24 @@ one of these in its docstring.
   effects* even though its individual-feature signs were directionally right.
   Trend is a confirmed negative result, not graduated.
 
+- **`notebooks/07_mask_aware_validation.ipynb`**
+  Why: source of `src/evaluate.py::measure_masking_pattern`/`simulate_masking`/
+  `mask_aware_horizon_matched_split` and `src/features.py::build_all_features`
+  (extracted from `src/train.py` so validation and production run the identical
+  feature pipeline). Followed an Opus-model review (project decision, 2026-09-04)
+  of notebook 06's real-vs-proxy inversion, which found that 66.5% of Test.csv's
+  `TWS_t` is masked-then-backward-filled (frozen at its last observed value) while
+  `horizon_matched_split` always validated on fully-observed `TWS_t` - a plausible
+  train/serve skew, especially damaging to trend-like features that read the
+  recent TWS_t trajectory. Simulating Test.csv's real masking pattern (measured,
+  not guessed: 66.7% of months near-fully masked, 99.8% of rows within them) onto
+  the validation fold before feature computation closed ~79% of the old proxy's
+  gap to the real leaderboard, and correctly ranks climatology as the best single
+  feature - but still ranks climatology+trend combined as 2nd-best when reality
+  says it's the worst option, so the interaction-inversion mystery is only
+  partly resolved. Graduated as the project's new primary internal proxy anyway
+  (the absolute-calibration win stands on its own); `src/train.py` reports it.
+
 ## Comparable projects
 
 - **DrivenData seasonal streamflow forecasting - winner write-up**

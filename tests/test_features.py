@@ -6,6 +6,7 @@ from src.features import (
     add_neighbourhood_features,
     add_seasonal_climatology_features,
     backward_fill_tws,
+    build_all_features,
     build_spatial_adjacency,
     fill_masked_tws,
     select_base_features,
@@ -197,3 +198,34 @@ def test_seasonal_climatology_deviation_is_nan_with_fewer_than_two_prior_years()
     assert row["tws_climatology_mean"] == 1.0
     assert np.isnan(row["tws_climatology_std"])
     assert np.isnan(row["tws_climatology_deviation"])
+
+
+def test_build_all_features_fills_masked_target_rows_from_history():
+    history = pd.concat([
+        _monthly_series(1.0, 1.0, [(2020, 1, 1.0), (2020, 2, 2.0), (2021, 1, 3.0)]),
+        _monthly_series(2.0, 2.0, [(2020, 1, 10.0), (2020, 2, 11.0), (2021, 1, 12.0)]),
+    ], ignore_index=True)
+    target = _monthly_series(1.0, 1.0, [(2021, 2, float("nan"))])
+
+    history_out, target_out = build_all_features(history, target)
+
+    assert len(history_out) == len(history)
+    assert len(target_out) == len(target)
+    assert target_out.loc[0, "TWS_t"] == 3.0  # backward-filled from 2021-01 (most recent)
+
+
+def test_build_all_features_adds_neighbourhood_and_climatology_columns():
+    history = pd.concat([
+        _monthly_series(0.0, 0.0, [(2020, 1, 1.0), (2021, 1, 3.0)]),
+        _monthly_series(1.0, 0.0, [(2020, 1, 5.0), (2021, 1, 7.0)]),
+    ], ignore_index=True)
+    target = _monthly_series(0.0, 0.0, [(2022, 1, 9.0)])
+
+    history_out, target_out = build_all_features(history, target)
+
+    for col in ["tws_neighbour_mean", "tws_local_deviation", "tws_climatology_mean",
+                "tws_climatology_deviation"]:
+        assert col in history_out.columns
+        assert col in target_out.columns
+    # target's only row is its cell's 3rd January - climatology mean = mean(1.0, 3.0).
+    assert target_out.loc[0, "tws_climatology_mean"] == 2.0

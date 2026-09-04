@@ -46,7 +46,13 @@ These come from two data-leak incidents and their follow-up clarifications
 6. External data (ERA5, Copernicus GDO/EDO, climate indices) is allowed later
    (per user decision, scoped to "provided columns only" for now) but must be
    reported to Zindi and listed on the challenge's "additional data" page, and every
-   derived feature needs a per-row source-date ≤ t audit before use.
+   derived feature needs a per-row source-date ≤ t audit before use. Two more
+   constraints from `docs/rules.txt`, easy to miss: the source **must be available
+   within one month of acquisition** at real inference time (rules out ERA5 final
+   reanalysis for recent months; ERA5T/ERA5-Land near-real-time products are fine),
+   and **AutoML tools are banned** (FLAML, TPOT, auto-sklearn, etc.) — plain random
+   search over `HistGradientBoostingRegressor`'s own hyperparameters is not AutoML
+   and remains fine.
 
 ## Project layout
 
@@ -153,6 +159,35 @@ Run tests: `pytest`
   `src/train.py`. Trend is a confirmed negative result, not graduated.
   `outputs/submission.csv` regenerated with climatology included (honest-metric
   RMSE now 0.6505, reproducing the notebook's number exactly).
+- 2026-09-04 — Spawned an Opus-model review of the above (user request) to plan
+  next steps. Its key finding: 66.5% of Test.csv's `TWS_t` is masked-then-
+  backward-filled (frozen at its last observed value), while
+  `horizon_matched_split` always validates on fully-observed `TWS_t` - a
+  train/serve skew that plausibly explains why the internal proxy inverted the
+  climatology+trend interaction ranking. Recommended fixing the proxy (P0)
+  before further feature/tuning/external-data work. Also caught and fixed:
+  a stale 94.5%->77.7% figure in `evaluate.py`'s docstring, a duplicated
+  RESOURCES.md heading, and this README's Task summary still citing the
+  superseded 0.6532 proxy number.
+- 2026-09-04 — **P0 (`notebooks/07_mask_aware_validation.ipynb`)**: built
+  `evaluate.measure_masking_pattern`/`simulate_masking`/
+  `mask_aware_horizon_matched_split` and `features.build_all_features`
+  (extracted from `src/train.py` so validation and production run the
+  identical feature pipeline - TDD, new unit tests in both test modules).
+  Validates Test.csv's real masking pattern (measured: 66.7% of months
+  near-fully masked, 99.8% of rows within them - matches `01_eda.ipynb`'s
+  estimate almost exactly) onto the validation fold before computing derived
+  features. **Partial win**: closed ~79% of the old proxy's gap to the real
+  leaderboard (baseline config: 0.6532 -> 0.7552 vs. real 0.7822 - old gap
+  0.129, new gap 0.027) and correctly ranks climatology as best - but still
+  ranks climatology+trend combined as 2nd-best when reality says it's the
+  worst option, so the specific interaction-inversion mystery is not fully
+  closed (see notebook's Gate decision for the full reasoning). **Graduated
+  as the new primary proxy anyway** (`src/train.py` now reports it) since the
+  absolute-calibration win stands on its own. Policy going forward: gate
+  backward-looking/seasonal/spatial features on this proxy; anything reading
+  or extrapolating the recent `TWS_t` trajectory still needs a real Zindi
+  submission before graduating (per the Opus review's Tier A/Tier B split).
 
 ## Next steps
 
@@ -193,6 +228,39 @@ Run tests: `pytest`
       `submission_climatology_trend.csv` to Zindi and compare real leaderboard
       scores. **Climatology won (0.7822 → 0.7778), graduated.** Trend lost
       standalone and combined — confirmed negative result, not graduated.
-- [ ] External data phase: Copernicus/ERA5 ingestion module + per-feature
-      source-date audit, once the provided-columns pipeline is validated.
-- [ ] Hyperparameter tuning (random search) — after feature work, not before.
+- [x] **P0 — mask-aware validation** (Opus review recommendation, see Progress
+      log): `notebooks/07_mask_aware_validation.ipynb` simulates Test.csv's real
+      TWS_t masking pattern on the validation fold before computing features.
+      Closed ~79% of the old proxy's gap to the real leaderboard; graduated as
+      the new primary proxy (`evaluate.mask_aware_horizon_matched_split`,
+      `src/train.py` updated). Interaction-ranking mystery only partly
+      resolved — see that notebook's Gate decision.
+- [ ] **P1 — anchor-age feature + persistence sanity check**: add
+      `months_since_anchor` (how stale each masked cell's backward-fill anchor
+      is — computed in nb05 as a diagnostic, never used as a model input) so
+      the model can distinguish a 1-month-ahead forecast from a 4-month-ahead
+      one off the same frozen anchor. Requires training under the same masking
+      simulation as P0 (otherwise this feature is ~constant in training). Spend
+      one submission on a pure-persistence baseline (`Target = filled TWS_t`)
+      alongside it — if real persistence beats 0.7778, the fitted model is
+      currently worse than trivial out-of-time.
+- [ ] **P2 — own-cell dynamics on SPEI/soil moisture, not TWS**: SPEI_01/03/06/12
+      and SOIL_MOISTURE are never masked in Test.csv, so lags/rolling
+      stats/trends built on them (instead of the masked-and-frozen TWS_t) avoid
+      the P0 train/serve skew entirely — gateable on the mask-aware proxy
+      without spending a submission. A TWS trend computed over strictly
+      *observed* (pre-mask) history only is also worth retrying on this basis.
+- [ ] **P3 — hyperparameter tuning** (random search, Bergstra & Bengio 2012) —
+      moved ahead of external data (Opus review recommendation): `make_baseline_model`
+      is still at its original starter-notebook defaults, and tuning typically
+      matters more than incremental feature work once the validation protocol
+      is trustworthy. Must come after P0 (already done), or tuning would target
+      the wrong (fresh-anchor) regime.
+- [ ] **P4 — external data phase**: Copernicus/ERA5 ingestion + per-feature
+      source-date audit. Lowest priority (highest effort: regridding to 1°,
+      per-row date audit, Zindi disclosure) but not droppable — also scores
+      under Phase 2's Innovation criterion (20%). `docs/rules.txt` constrains
+      the source: must be available within one month of acquisition (rules out
+      ERA5 final reanalysis; permits ERA5T/ERA5-Land near-real-time), and
+      AutoML tools (FLAML/TPOT/auto-sklearn) are banned — plain random search
+      over `HistGradientBoostingRegressor`'s params for P3 is fine.
