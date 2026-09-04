@@ -114,9 +114,14 @@ one of these in its docstring.
   always fully observed. Validated over 5 independent masking realisations: fit
   augmentation alone beats the P0 reference (0.7469) in 5/5 seeds (mean 0.7201);
   adding the age feature on top beats that in 5/5 seeds too (mean 0.7126) - no
-  MAE trade-offs in any seed, unlike the trend feature. Not yet wired into
-  `src/train.py`'s default pipeline pending real-leaderboard confirmation
-  (`outputs/submission_anchor_age.csv` generated and queued).
+  MAE trade-offs in any seed, unlike the trend feature. **Real leaderboard
+  result (2026-09-04): 0.7579 RMSE**, beating the prior best (0.7778,
+  climatology) by ~2.6% - the largest confirmed win since masked-fill, and
+  unlike trend, no proxy-inversion surprise. Graduated as the default pipeline:
+  `src/train.py`'s final fit now trains on masking-augmented Train.csv with
+  `months_since_anchor` included, and reports
+  `mask_augmented_horizon_matched_split`'s mean over 5 seeds as the primary
+  proxy.
 
 ## Comparable projects
 

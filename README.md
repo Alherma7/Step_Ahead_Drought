@@ -13,13 +13,15 @@ practice project for **data visualization, GIS, regression, and feature engineer
 - Train: 2,154,021 rows (2002-05 to 2015-08). Test: 280,961 rows, 18 months, of which
   **~66.5% of `TWS_t` is masked** (see `TWS_t_masked` in Test.csv).
 - Leaderboard leader's score (reported 2026-09-03): **0.559 RMSE**.
-- **Best real submission so far: 0.7778 RMSE** (2026-09-04, with seasonal
-  climatology). First real submission scored 0.7822 (2026-09-03) — see Progress
-  log and `notebooks/05_leaderboard_gap_investigation.ipynb` for why that came in
-  much worse than the internal validation number at the time (0.5994). Current
-  internal proxy metric (honest, horizon-matched): **0.6505 RMSE**, via
-  `evaluate.horizon_matched_split` — still a real, only partly-understood gap to
-  the true leaderboard score; see Progress log's 2026-09-04 entries.
+- **Best real submission so far: 0.7579 RMSE** (2026-09-04, masking-augmented
+  training + anchor-age feature — current default pipeline). First real
+  submission scored 0.7822 (2026-09-03) — see Progress log and
+  `notebooks/05_leaderboard_gap_investigation.ipynb` for why that came in much
+  worse than the internal validation number at the time (0.5994). Current
+  internal proxy metric (honest, mask-augmented): **mean 0.7126 RMSE over 5
+  masking realisations**, via `evaluate.mask_augmented_horizon_matched_split` —
+  much closer to the real score than earlier proxies, but still not exact; see
+  Progress log's 2026-09-04 entries for the full proxy history.
 
 ## Competition constraints (binding — read before adding any feature)
 
@@ -204,8 +206,19 @@ Run tests: `pytest`
   policy: **not wired into `src/train.py`'s default pipeline yet**.
   `outputs/submission_anchor_age.csv` (augmented training + anchor age) and
   `outputs/submission_persistence.csv` (pure persistence sanity check, `Target =
-  filled TWS_t`) generated and queued for upload - not yet scored as of this
-  writing.
+  filled TWS_t`) generated and queued for upload.
+- 2026-09-04 — **Persistence sanity check scored: 0.8864 RMSE** - much worse
+  than the fitted model (best: 0.7778), confirming the model is genuinely adding
+  value out-of-time, not just riding the backward-filled anchor.
+- 2026-09-04 — **`submission_anchor_age.csv` scored 0.7579 RMSE** - beats the
+  prior best (0.7778, climatology) by ~2.6%, the largest confirmed real-world
+  win since masked-fill, and this time with no proxy-inversion surprise (5-seed
+  internal validation predicted a clean win, and it held up). **Graduated**:
+  `src/train.py`'s final fit now trains on masking-augmented Train.csv with
+  `months_since_anchor` included (`evaluate.mask_augmented_horizon_matched_split`
+  is the new primary proxy, mean RMSE 0.7126 over 5 seeds, reported by
+  `src/train.py`). `outputs/submission.csv` regenerated with this as the new
+  default pipeline.
 
 ## Next steps
 
@@ -262,13 +275,10 @@ Run tests: `pytest`
       `notebooks/08_anchor_age_feature.ipynb`: fit augmentation alone beats the
       P0 reference (0.7469) in 5/5 seeds (mean 0.7201); adding
       `months_since_anchor` on top beats that in 5/5 seeds too (mean 0.7126) —
-      clean wins, no MAE trade-offs, unlike the trend feature. **Not yet the
-      default pipeline** (`src/train.py` unchanged) pending real-leaderboard
-      confirmation, per the Tier A/B policy — `outputs/submission_anchor_age.csv`
-      generated (augmented training + anchor age) and queued for upload,
-      alongside `outputs/submission_persistence.csv` (pure persistence,
-      `Target = filled TWS_t` — sanity check: if this beats 0.7778, the fitted
-      model is currently worse than trivial out-of-time).
+      clean wins, no MAE trade-offs, unlike the trend feature. **Won for real**
+      (0.7778 → 0.7579, ~2.6%) — graduated as the default pipeline. Persistence
+      sanity check (0.8864) confirms the model beats trivial persistence by a
+      wide margin.
 - [ ] **P2 — own-cell dynamics on SPEI/soil moisture, not TWS**: SPEI_01/03/06/12
       and SOIL_MOISTURE are never masked in Test.csv, so lags/rolling
       stats/trends built on them (instead of the masked-and-frozen TWS_t) avoid
