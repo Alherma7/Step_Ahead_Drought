@@ -8,6 +8,7 @@ from src.features import (
     backward_fill_tws,
     build_all_features,
     build_spatial_adjacency,
+    compute_anchor_age,
     fill_masked_tws,
     select_base_features,
 )
@@ -229,3 +230,42 @@ def test_build_all_features_adds_neighbourhood_and_climatology_columns():
         assert col in target_out.columns
     # target's only row is its cell's 3rd January - climatology mean = mean(1.0, 3.0).
     assert target_out.loc[0, "tws_climatology_mean"] == 2.0
+
+
+def test_compute_anchor_age_is_zero_for_an_observed_row():
+    history = _monthly_series(1.0, 1.0, [(2020, 1, 1.0)])
+    target = _monthly_series(1.0, 1.0, [(2020, 2, 2.0)])  # observed, not masked
+
+    age = compute_anchor_age(history, target)
+
+    assert age.tolist() == [0]
+
+
+def test_compute_anchor_age_counts_months_since_the_last_observed_value():
+    history = _monthly_series(1.0, 1.0, [(2020, 1, 1.0)])
+    target = _monthly_series(1.0, 1.0, [(2020, 4, float("nan"))])  # masked, 3 months later
+
+    age = compute_anchor_age(history, target)
+
+    assert age.tolist() == [3]
+
+
+def test_compute_anchor_age_is_nan_with_no_history_at_all():
+    history = _monthly_series(1.0, 1.0, [])
+    target = _monthly_series(1.0, 1.0, [(2020, 1, float("nan"))])
+
+    age = compute_anchor_age(history, target)
+
+    assert np.isnan(age.iloc[0])
+
+
+def test_compute_anchor_age_is_per_cell():
+    history = pd.concat([
+        _monthly_series(1.0, 1.0, [(2020, 1, 1.0)]),
+        _monthly_series(2.0, 2.0, [(2020, 3, 9.0)]),  # much more recent, different cell
+    ], ignore_index=True)
+    target = _monthly_series(1.0, 1.0, [(2020, 4, float("nan"))])
+
+    age = compute_anchor_age(history, target)
+
+    assert age.tolist() == [3]  # unaffected by cell 2's more recent observation

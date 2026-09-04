@@ -104,6 +104,20 @@ one of these in its docstring.
   partly resolved. Graduated as the project's new primary internal proxy anyway
   (the absolute-calibration win stands on its own); `src/train.py` reports it.
 
+- **`notebooks/08_anchor_age_feature.ipynb`**
+  Why: source of `src/features.py::compute_anchor_age` (`months_since_anchor`)
+  and `src/evaluate.py::augment_with_simulated_masking`/
+  `mask_augmented_horizon_matched_split`. Implements the Opus review's P1
+  recommendation - `months_since_anchor` is only learnable if the model sees it
+  vary during training, which requires simulating masking on the FIT half too
+  (not just validation, as notebook 07's fix did), since Train.csv is otherwise
+  always fully observed. Validated over 5 independent masking realisations: fit
+  augmentation alone beats the P0 reference (0.7469) in 5/5 seeds (mean 0.7201);
+  adding the age feature on top beats that in 5/5 seeds too (mean 0.7126) - no
+  MAE trade-offs in any seed, unlike the trend feature. Not yet wired into
+  `src/train.py`'s default pipeline pending real-leaderboard confirmation
+  (`outputs/submission_anchor_age.csv` generated and queued).
+
 ## Comparable projects
 
 - **DrivenData seasonal streamflow forecasting - winner write-up**

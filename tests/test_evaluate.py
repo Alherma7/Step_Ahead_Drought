@@ -3,10 +3,12 @@ import pandas as pd
 import pytest
 
 from src.evaluate import (
+    augment_with_simulated_masking,
     compute_horizons,
     compute_metrics,
     compute_test_horizons,
     horizon_matched_split,
+    mask_augmented_horizon_matched_split,
     mask_aware_horizon_matched_split,
     measure_masking_pattern,
     rmse,
@@ -147,3 +149,73 @@ def test_mask_aware_horizon_matched_split_produces_engineered_features_with_some
     val_row_lat0 = val_df[val_df["lat"] == 0.0].iloc[0]
     fit_last_lat0 = fit_df[fit_df["lat"] == 0.0].sort_values("time")["TWS_t"].iloc[-1]
     assert val_row_lat0["TWS_t"] == fit_last_lat0
+
+
+def test_mask_augmented_horizon_matched_split_augments_both_fit_and_val():
+    months = pd.date_range("2020-01-01", periods=10, freq="MS")
+    rows = []
+    for lat in [0.0, 1.0]:
+        for i, t in enumerate(months):
+            rows.append({"lat": lat, "lon": 0.0, "time": t,
+                         "TWS_t": float(i + (0 if lat == 0.0 else 100))})
+    raw = pd.DataFrame(rows)
+
+    fit_df, val_df = mask_augmented_horizon_matched_split(
+        raw, target_horizons={1}, masked_month_fraction=0.5, masked_row_fraction=1.0,
+        val_fraction=1 / 10, fit_seed=1, val_seed=0,
+    )
+
+    assert "months_since_anchor" in fit_df.columns
+    assert "months_since_anchor" in val_df.columns
+    # Fit was augmented with simulated masking, so its own anchor age must vary,
+    # not stay constant at 0 (which would make the feature unlearnable).
+    assert (fit_df["months_since_anchor"] > 0).any()
+    assert fit_df["months_since_anchor"].notna().any()
+
+
+def test_augment_with_simulated_masking_returns_matching_shapes():
+    df = pd.DataFrame({
+        "lat": [1.0] * 6, "lon": [1.0] * 6,
+        "time": pd.date_range("2020-01-01", periods=6, freq="MS"),
+        "TWS_t": [10.0, 20.0, 30.0, 40.0, 50.0, 60.0],
+    })
+
+    augmented, age = augment_with_simulated_masking(df, 0.5, 1.0, seed=0)
+
+    assert len(augmented) == len(df) == len(age)
+    assert list(augmented.columns) == list(df.columns)
+
+
+def test_augment_with_simulated_masking_is_a_no_op_with_zero_masked_fraction():
+    df = pd.DataFrame({
+        "lat": [1.0, 1.0], "lon": [1.0, 1.0],
+        "time": pd.to_datetime(["2020-01-01", "2020-02-01"]),
+        "TWS_t": [1.0, 2.0],
+    })
+
+    augmented, age = augment_with_simulated_masking(df, 0.0, 1.0, seed=0)
+
+    assert augmented["TWS_t"].tolist() == [1.0, 2.0]
+    assert age.tolist() == [0, 0]
+
+
+def test_augment_with_simulated_masking_ages_match_actual_masked_rows():
+    df = pd.DataFrame({
+        "lat": [1.0] * 6, "lon": [1.0] * 6,
+        "time": pd.date_range("2020-01-01", periods=6, freq="MS"),
+        "TWS_t": [10.0, 20.0, 30.0, 40.0, 50.0, 60.0],
+    })
+
+    augmented, age = augment_with_simulated_masking(df, 0.5, 1.0, seed=0)
+
+    was_masked = ~np.isclose(augmented["TWS_t"].to_numpy(), df["TWS_t"].to_numpy())
+    assert was_masked.any()  # something was actually masked given these params
+    for i in range(6):
+        if was_masked[i]:
+            if pd.isna(augmented["TWS_t"].iloc[i]):
+                assert pd.isna(age.iloc[i])  # no earlier anchor at all
+            else:
+                assert age.iloc[i] > 0
+                assert augmented["TWS_t"].iloc[i] in df["TWS_t"].iloc[:i].to_numpy()
+        else:
+            assert age.iloc[i] == 0

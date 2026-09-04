@@ -188,6 +188,24 @@ Run tests: `pytest`
   backward-looking/seasonal/spatial features on this proxy; anything reading
   or extrapolating the recent `TWS_t` trajectory still needs a real Zindi
   submission before graduating (per the Opus review's Tier A/Tier B split).
+- 2026-09-04 — **P1 (`notebooks/08_anchor_age_feature.ipynb`)**: added
+  `features.compute_anchor_age` (`months_since_anchor`) and
+  `evaluate.augment_with_simulated_masking`/`mask_augmented_horizon_matched_split`
+  (TDD, new unit tests) - the fit half now also gets simulated masking, not just
+  validation, since `months_since_anchor` would otherwise be a constant 0 in
+  training (Train.csv is always fully observed) and unlearnable. Checked over 5
+  independent masking realisations, not one: fit augmentation alone beats the P0
+  reference (0.7469) in 5/5 seeds (mean 0.7201, ~3.6%); adding
+  `months_since_anchor` on top beats that in 5/5 seeds too (mean 0.7126, ~4.6%
+  total) - clean wins on every metric component in every seed, unlike the trend
+  feature's trade-offs. Judged mechanistically safer than trend (this fixes a
+  train/serve mismatch, the same class of fix P0 itself was, rather than
+  extrapolating a trajectory) but still treated cautiously per the Tier A/B
+  policy: **not wired into `src/train.py`'s default pipeline yet**.
+  `outputs/submission_anchor_age.csv` (augmented training + anchor age) and
+  `outputs/submission_persistence.csv` (pure persistence sanity check, `Target =
+  filled TWS_t`) generated and queued for upload - not yet scored as of this
+  writing.
 
 ## Next steps
 
@@ -235,15 +253,22 @@ Run tests: `pytest`
       the new primary proxy (`evaluate.mask_aware_horizon_matched_split`,
       `src/train.py` updated). Interaction-ranking mystery only partly
       resolved — see that notebook's Gate decision.
-- [ ] **P1 — anchor-age feature + persistence sanity check**: add
-      `months_since_anchor` (how stale each masked cell's backward-fill anchor
-      is — computed in nb05 as a diagnostic, never used as a model input) so
-      the model can distinguish a 1-month-ahead forecast from a 4-month-ahead
-      one off the same frozen anchor. Requires training under the same masking
-      simulation as P0 (otherwise this feature is ~constant in training). Spend
-      one submission on a pure-persistence baseline (`Target = filled TWS_t`)
-      alongside it — if real persistence beats 0.7778, the fitted model is
-      currently worse than trivial out-of-time.
+- [x] **P1 — anchor-age feature + training-time masking augmentation**: built
+      `features.compute_anchor_age` (`months_since_anchor`) and
+      `evaluate.augment_with_simulated_masking`/`mask_augmented_horizon_matched_split`
+      (also simulates masking on the FIT half, not just validation — otherwise
+      the age feature is constant 0 in training and unlearnable). Validated over
+      5 independent masking realisations in
+      `notebooks/08_anchor_age_feature.ipynb`: fit augmentation alone beats the
+      P0 reference (0.7469) in 5/5 seeds (mean 0.7201); adding
+      `months_since_anchor` on top beats that in 5/5 seeds too (mean 0.7126) —
+      clean wins, no MAE trade-offs, unlike the trend feature. **Not yet the
+      default pipeline** (`src/train.py` unchanged) pending real-leaderboard
+      confirmation, per the Tier A/B policy — `outputs/submission_anchor_age.csv`
+      generated (augmented training + anchor age) and queued for upload,
+      alongside `outputs/submission_persistence.csv` (pure persistence,
+      `Target = filled TWS_t` — sanity check: if this beats 0.7778, the fitted
+      model is currently worse than trivial out-of-time).
 - [ ] **P2 — own-cell dynamics on SPEI/soil moisture, not TWS**: SPEI_01/03/06/12
       and SOIL_MOISTURE are never masked in Test.csv, so lags/rolling
       stats/trends built on them (instead of the masked-and-frozen TWS_t) avoid

@@ -216,6 +216,35 @@ def add_seasonal_climatology_features(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
+def compute_anchor_age(history_df: pd.DataFrame, target_df: pd.DataFrame) -> pd.Series:
+    """For each target_df row, whole months since that cell's last observed
+    (non-null) TWS_t at or before this row's own time - 0 for an already-observed
+    row, NaN if the cell has no observed history at all yet.
+
+    Source: notebooks/05_leaderboard_gap_investigation.ipynb's "anchor staleness"
+    diagnostic (average 2.6, max 6 months on real Test.csv) - computed there only
+    to rule out staleness as the leaderboard-gap cause, never used as a model
+    input. Promoted to an actual feature per the Opus-model review's P1
+    recommendation, 2026-09-04: the model previously had no way to distinguish a
+    1-month-ahead forecast from a 4-month-ahead one off the same frozen
+    backward-filled anchor. Returns a Series aligned to target_df's row order
+    (same calling convention as fill_masked_tws).
+    """
+    cols = [config.LAT_COL, config.LON_COL, config.TIME_COL, config.TWS_COL]
+    combined = pd.concat([history_df[cols], target_df[cols]], ignore_index=True)
+    ordered = combined.sort_values([config.LAT_COL, config.LON_COL, config.TIME_COL]).copy()
+    ordered["_anchor_time"] = ordered[config.TIME_COL].where(ordered[config.TWS_COL].notna())
+    ordered["_anchor_time"] = (
+        ordered.groupby([config.LAT_COL, config.LON_COL])["_anchor_time"].ffill()
+    )
+    months_since = (
+        (ordered[config.TIME_COL].dt.year - ordered["_anchor_time"].dt.year) * 12
+        + (ordered[config.TIME_COL].dt.month - ordered["_anchor_time"].dt.month)
+    )
+    months_since = months_since.reindex(combined.index)
+    return months_since.iloc[len(history_df):].reset_index(drop=True)
+
+
 def build_all_features(
     history_df: pd.DataFrame, target_df: pd.DataFrame
 ) -> tuple[pd.DataFrame, pd.DataFrame]:

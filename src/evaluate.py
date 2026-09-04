@@ -167,3 +167,78 @@ def mask_aware_horizon_matched_split(
         val_matched_raw, masked_month_fraction, masked_row_fraction, seed
     )
     return features.build_all_features(fit_raw, val_masked_raw)
+
+
+def augment_with_simulated_masking(
+    raw_df: pd.DataFrame,
+    masked_month_fraction: float,
+    masked_row_fraction: float,
+    seed: int,
+) -> tuple[pd.DataFrame, pd.Series]:
+    """Simulate Test.csv's masking pattern on raw_df's own TWS_t, backward-fill it
+    from raw_df's own earlier history (self-referential), and compute each row's
+    resulting anchor age - a training-time augmentation so a model can learn from
+    examples with a stale/frozen anchor, not just fully-observed rows (all that
+    Train.csv otherwise ever provides).
+
+    Source: notebooks/08_anchor_age_feature.ipynb (P1, Opus-model review,
+    2026-09-04) - validated over 5 independent masking realisations, beating an
+    unaugmented fit on every metric component in every seed.
+
+    Returns (augmented_df, anchor_age): augmented_df is a copy of raw_df with
+    TWS_t replaced by its masked-then-backward-filled version; anchor_age is a
+    Series aligned to augmented_df giving each row's months-since-anchor (0 for
+    rows that were never masked, NaN for a cell with no earlier anchor at all).
+    """
+    masked = simulate_masking(raw_df, masked_month_fraction, masked_row_fraction, seed)
+    anchor_age = features.compute_anchor_age(masked.iloc[:0], masked)
+    augmented = raw_df.copy()
+    augmented[config.TWS_COL] = features.backward_fill_tws(masked).to_numpy()
+    return augmented, anchor_age
+
+
+def mask_augmented_horizon_matched_split(
+    raw_train: pd.DataFrame,
+    target_horizons: set[int],
+    masked_month_fraction: float,
+    masked_row_fraction: float,
+    val_fraction: float = 0.2,
+    fit_seed: int = config.RANDOM_STATE,
+    val_seed: int = config.RANDOM_STATE + 100,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """mask_aware_horizon_matched_split, but the fit half is ALSO augmented with
+    simulated masking (self-referentially filled from its own earlier history),
+    and both halves get a `months_since_anchor` column (features.compute_anchor_age).
+
+    Source: project decision 2026-09-04 (P1, Opus-model review) - a
+    `months_since_anchor` feature is only learnable if training data shows it
+    varying; Train.csv is otherwise always fully observed, so months_since_anchor
+    would be constant 0 for every fit row without this augmentation. Validated
+    (5-seed robustness check, `notebooks/08_anchor_age_feature.ipynb`): both the
+    fit-augmentation itself and the anchor-age feature on top each improve every
+    metric component, in every seed tried, over the plain mask_aware_horizon_
+    matched_split.
+
+    Fit's own masking simulation is filled from fit's OWN earlier history
+    (self-referential, via backward_fill_tws directly) - it must not see val's
+    true values. Val's masking (as in mask_aware_horizon_matched_split) is filled
+    from fit_raw's TRUE, unaugmented history - exactly mirroring how real
+    Test.csv is filled from the always-fully-observed Train.csv, not from an
+    augmented copy of it.
+    """
+    fit_raw, val_raw = time_train_val_split(raw_train, val_fraction)
+    cutoff = fit_raw[config.TIME_COL].max()
+    horizons = compute_horizons(cutoff, val_raw[config.TIME_COL])
+    val_matched_raw = val_raw[horizons.isin(target_horizons).to_numpy()].reset_index(drop=True)
+
+    fit_filled, fit_anchor_age = augment_with_simulated_masking(
+        fit_raw, masked_month_fraction, masked_row_fraction, fit_seed
+    )
+
+    val_masked_raw = simulate_masking(val_matched_raw, masked_month_fraction, masked_row_fraction, val_seed)
+    val_anchor_age = features.compute_anchor_age(fit_raw, val_masked_raw)
+
+    fit_out, val_out = features.build_all_features(fit_filled, val_masked_raw)
+    fit_out["months_since_anchor"] = fit_anchor_age.to_numpy()
+    val_out["months_since_anchor"] = val_anchor_age.to_numpy()
+    return fit_out, val_out
