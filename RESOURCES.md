@@ -151,6 +151,22 @@ one of these in its docstring.
   remain in the notebook only, not graduated and not real-submission-tested (their
   proxy signal gave no reason to expect a different real-world outcome).
 
+- **`notebooks/10_hyperparameter_tuning.ipynb`**
+  Why: P3 investigation - random search (Bergstra & Bengio 2012) over
+  `HistGradientBoostingRegressor`'s standard boosting levers. Round 1 (25 candidates):
+  only one beat the current defaults (0.7117 -> 0.7106, ~0.15%, 4/5 seeds), landing at
+  the search floor for `max_leaf_nodes` - per `real-world-ml` ch04's refinement rule,
+  re-ran with `learning_rate`'s range lowered. Round 2: clearer win (best: 0.7082,
+  ~0.49%, 4/5 seeds), again near a boundary (`learning_rate`). Confirmed the best
+  round-2 candidate with a real submission before expanding further (project's
+  established practice since the P2 SPEI_12 case) - **real score 0.758156 RMSE,
+  worse than the current best (0.755129)**, a genuine proxy-real inversion on the
+  hyperparameter axis. Working hypothesis: `HistGradientBoostingRegressor`'s
+  `early_stopping` picks its stopping point from a random (non-horizon-aware)
+  internal holdout, which may not transfer to Test.csv's real distribution at low
+  learning rates where the exact stopping point matters more. **Not graduated** -
+  `src/model.py` unchanged.
+
 ## Comparable projects
 
 - **DrivenData seasonal streamflow forecasting - winner write-up**
@@ -180,6 +196,25 @@ one of these in its docstring.
   (each cell's mean `TWS_t` for the same calendar month in all strictly earlier
   years).
 
+- **Géron, *Hands-On Machine Learning with Scikit-Learn and TensorFlow* (O'Reilly,
+  2017), ch. 7 "Ensemble Learning and Random Forests"** (`hands-on-ml` skill)
+  Why: source of `notebooks/10_hyperparameter_tuning.ipynb`'s (P3) decision not to
+  search `max_iter` directly - "manually grid-searching Gradient Boosting's
+  `n_estimators` by training many separate ensembles from scratch [is] wasteful...
+  use `staged_predict()` or a `warm_start` early-stopping loop instead" - the
+  equivalent for `HistGradientBoostingRegressor` is its built-in
+  `early_stopping`/`n_iter_no_change` API. Also source for treating `learning_rate`
+  and the tree count as "a paired tuning surface" and gradient boosting's other
+  standard levers (`max_depth`, `min_samples_leaf`, regularization).
+
+- **Brink, Richards & Fetherolf, *Real-World Machine Learning* (Manning, 2017),
+  ch. 4 "Model Evaluation and Optimization"** (`real-world-ml` skill)
+  Why: source of the grid-search refinement rule applied when reading
+  `notebooks/10_hyperparameter_tuning.ipynb`'s (P3) results - "boundary optimum ->
+  expand the grid; high sensitivity -> densify/log-scale; low sensitivity ->
+  coarsen" - and confirms boosting's standard tuning-parameter set ("number of
+  trees, learning rate, max depth, splitting criterion, min samples to split").
+
 - **Brink, Richards & Fetherolf, *Real-World Machine Learning* (Manning, 2017),
   ch. 7 "Advanced Feature Engineering"** (`real-world-ml` skill)
   Why: source of the **Classical Time-Series Feature Escalation** ladder (marginal
@@ -194,7 +229,16 @@ one of these in its docstring.
   should happen before writing candidate-feature code, per
   `structuring-ml-projects` rule 3.
 
-## Pending (add before use)
+- **Bergstra & Bengio, "Random Search for Hyper-Parameter Optimization"** (JMLR 2012)
+  Why: justifies random search over grid search for `notebooks/10_hyperparameter_tuning.ipynb`'s
+  (P3) multi-dimensional search over `HistGradientBoostingRegressor`'s `learning_rate`/
+  `max_depth`/`min_samples_leaf`/`l2_regularization`/`max_leaf_nodes` - for the same
+  compute budget, random search explores each dimension's marginal effect more
+  finely than a grid, which wastes evaluations on unimportant dimensions.
 
-- Random search vs. grid search for hyperparameter tuning: Bergstra & Bengio, JMLR 2012
-  ("Random Search for Hyper-Parameter Optimization") - cite in full once tuning starts.
+## Library documentation (P3)
+
+- **scikit-learn `HistGradientBoostingRegressor`** (https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.HistGradientBoostingRegressor.html)
+  Why: source of the `early_stopping`/`validation_fraction`/`n_iter_no_change` API used
+  in `notebooks/10_hyperparameter_tuning.ipynb` to let the model pick its own `max_iter`
+  per `hands-on-ml` ch07's guidance below, instead of searching it directly.

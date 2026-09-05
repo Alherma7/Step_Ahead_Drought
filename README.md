@@ -251,6 +251,26 @@ Run tests: `pytest`
   small-but-consistent-direction signal should default to a real-submission check
   before closing the investigation, not skip straight to "negative result" - see
   RESOURCES.md's `notebooks/09_own_cell_dynamics.ipynb` entry for the full reasoning.
+- 2026-09-05 — **P3 (`notebooks/10_hyperparameter_tuning.ipynb`)**: random search over
+  `HistGradientBoostingRegressor`'s `learning_rate`/`max_depth`/`min_samples_leaf`/
+  `l2_regularization`/`max_leaf_nodes` (Bergstra & Bengio 2012; `max_iter` fixed at a
+  generous ceiling and left to the model's own early stopping, per `hands-on-ml` ch07 -
+  not searched directly). Round 1 (25 candidates, single-seed screen + 5-seed
+  confirmation of the top 3): only one candidate beat the current defaults (0.7117 ->
+  0.7106, ~0.15%, 4/5 seeds), and it landed at the search floor for `max_leaf_nodes` -
+  per `real-world-ml` ch04's refinement rule, re-ran with `learning_rate` lowered
+  further. Round 2: all 3 top candidates beat defaults by a clearer margin (best:
+  0.7082, ~0.49%, 4/5 seeds) - again near a boundary (`learning_rate` close to the new
+  floor). Rather than keep expanding, confirmed the best round-2 candidate with a real
+  submission first (this project's established practice since P2).
+  **Real Zindi score: 0.758156 RMSE - worse than the current best (0.755129)**, despite
+  the proxy's clear win. A genuine proxy-real inversion on the hyperparameter axis.
+  Working hypothesis (not independently verified): `HistGradientBoostingRegressor`'s
+  built-in `early_stopping` picks its stopping point from a plain RANDOM internal
+  holdout, not this project's horizon-matched/mask-aware validation structure - at a
+  very low learning rate the exact stopping point matters a lot, and the internal
+  random split's signal may not transfer to Test.csv's real deployment distribution.
+  **Not graduated** - `src/model.py` unchanged, logged as a negative result.
 
 ## Next steps
 
@@ -327,12 +347,15 @@ Run tests: `pytest`
       scope, since it reads TWS's own trajectory and would need a real Zindi
       submission under the Tier B policy, same as the already-rejected
       long-window trend feature.
-- [ ] **P3 — hyperparameter tuning** (random search, Bergstra & Bengio 2012) —
-      moved ahead of external data (Opus review recommendation): `make_baseline_model`
-      is still at its original starter-notebook defaults, and tuning typically
-      matters more than incremental feature work once the validation protocol
-      is trustworthy. Must come after P0 (already done), or tuning would target
-      the wrong (fresh-anchor) regime.
+- [x] **P3 — hyperparameter tuning**: random search (Bergstra & Bengio 2012) over
+      `HistGradientBoostingRegressor`'s standard boosting levers, in
+      `notebooks/10_hyperparameter_tuning.ipynb`. Two rounds both found real proxy
+      improvements (round 2's best: 0.7117 -> 0.7082, ~0.49%, 4/5 seeds) but a real
+      Zindi submission on the best candidate scored **worse** (0.758156 vs. the
+      current best 0.755129) - a genuine proxy-real inversion, working hypothesis is
+      `HistGradientBoostingRegressor`'s internal `early_stopping` uses a random
+      (non-horizon-aware) holdout. **Not graduated** - `make_baseline_model` is
+      unchanged, still the original starter-notebook defaults.
 - [ ] **P4 — external data phase (ERA5), paused**: investigated the compliance
       question 2026-09-05 (8 days before close). The 13 Aug organizer FAQ confirms
       ERA5T/final-ERA5-as-documented-proxy for non-TWS variables (source date ≤ t) is
