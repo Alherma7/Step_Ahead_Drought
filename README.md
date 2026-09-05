@@ -219,6 +219,38 @@ Run tests: `pytest`
   is the new primary proxy, mean RMSE 0.7126 over 5 seeds, reported by
   `src/train.py`). `outputs/submission.csv` regenerated with this as the new
   default pipeline.
+- 2026-09-05 — **P2 investigation (`notebooks/09_own_cell_dynamics.ipynb`)**: own-cell
+  lag/rolling/AR(1) features on SPEI/soil moisture (never masked, gateable on the
+  proxy alone per the Gate policy). Built the first two candidates from ad-hoc data
+  exploration without first finding a source, in violation of `structuring-ml-projects`
+  rule 3 - caught by the user; corrected by locating the `real-world-ml` skill's ch07
+  time-series feature-escalation framework and citing it retroactively (RESOURCES.md).
+  That same exploration did catch a real methodological pitfall before it caused
+  damage: a fixed 1-/3-month calendar lag only covers 72%/44% of real Test.csv rows
+  (its 18 months aren't contiguous), which validating only against Train.csv's dense
+  panel would have hidden. Fixed via a `prior_value`/`prior_age` design (generalises
+  P1's `compute_anchor_age` pattern) - ~99% real coverage. Three candidates tested
+  against `mask_augmented_horizon_matched_split` (5-seed mean): soil-moisture
+  prior+age (flat, 0.7126->0.7126), SPEI_12 prior+age (0.7126->0.7117, ~0.1%, only
+  3/5 seeds), SPEI_12 AR(1)-deviation escalation (0.7126->0.7138, net loses, 4/5
+  seeds worse).
+- 2026-09-05 — Initially called SPEI_12 prior+age "too weak to graduate" on the proxy
+  signal alone (only 3/5 seeds, small margin) - the user challenged that call,
+  correctly pointing out this project has never confirmed with a real submission
+  whether a *negative*-looking Tier-A proxy verdict is actually trustworthy (the Gate
+  policy's proxy-alone shortcut was only ever validated on a *positive* case,
+  climatology). Generated `outputs/submission_spei12_prior.csv` (default pipeline +
+  only `spei12_prior_value`/`spei12_prior_age`, single controlled change) to check.
+  **Real Zindi score: 0.755129 RMSE** - beats the prior best (0.7579, anchor-age) by
+  ~0.37%, confirming the weak/inconsistent proxy signal *was* real. **Graduated**:
+  `src/features.py::compute_prior_reading` (generalised beyond just SPEI_12 - takes
+  any never-masked column), wired unconditionally into `build_all_features` so every
+  proxy variant in `evaluate.py` picks it up automatically, TDD unit tests added.
+  `outputs/submission.csv` regenerated with this as the new default pipeline. Lesson
+  for this project: a proxy-alone "not graduated" call on a Tier-A feature with a
+  small-but-consistent-direction signal should default to a real-submission check
+  before closing the investigation, not skip straight to "negative result" - see
+  RESOURCES.md's `notebooks/09_own_cell_dynamics.ipynb` entry for the full reasoning.
 
 ## Next steps
 
@@ -279,12 +311,22 @@ Run tests: `pytest`
       (0.7778 → 0.7579, ~2.6%) — graduated as the default pipeline. Persistence
       sanity check (0.8864) confirms the model beats trivial persistence by a
       wide margin.
-- [ ] **P2 — own-cell dynamics on SPEI/soil moisture, not TWS**: SPEI_01/03/06/12
-      and SOIL_MOISTURE are never masked in Test.csv, so lags/rolling
-      stats/trends built on them (instead of the masked-and-frozen TWS_t) avoid
-      the P0 train/serve skew entirely — gateable on the mask-aware proxy
-      without spending a submission. A TWS trend computed over strictly
-      *observed* (pre-mask) history only is also worth retrying on this basis.
+- [x] **P2 — own-cell dynamics on SPEI/soil moisture, not TWS**: investigated in
+      `notebooks/09_own_cell_dynamics.ipynb` following `real-world-ml`'s
+      time-series feature-escalation ladder. Found and fixed a coverage pitfall
+      (fixed calendar lags cover only 72%/44% of real Test.csv rows; a
+      `prior_value`/`prior_age` design generalising P1's anchor-age pattern
+      fixes that to ~99%). Of 3 candidates tested, 2 (soil-moisture prior+age;
+      SPEI_12 AR(1)-deviation) didn't clear the proxy and weren't worth a real
+      submission; the third (SPEI_12 prior+age) had a weak/inconsistent proxy
+      signal but was confirmed on the real leaderboard (0.7579 -> 0.755129,
+      ~0.37%) after the user challenged the proxy-only "not graduated" call —
+      **graduated** as `src/features.py::compute_prior_reading`, wired into
+      `build_all_features`, now the default pipeline. A TWS trend computed over
+      strictly *observed* (pre-mask) history only was not attempted — out of
+      scope, since it reads TWS's own trajectory and would need a real Zindi
+      submission under the Tier B policy, same as the already-rejected
+      long-window trend feature.
 - [ ] **P3 — hyperparameter tuning** (random search, Bergstra & Bengio 2012) —
       moved ahead of external data (Opus review recommendation): `make_baseline_model`
       is still at its original starter-notebook defaults, and tuning typically

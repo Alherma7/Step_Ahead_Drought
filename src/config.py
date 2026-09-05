@@ -44,6 +44,14 @@ CLIMATOLOGY_FEATURE_COLS = [CLIMATOLOGY_MEAN_COL, CLIMATOLOGY_DEVIATION_COL]
 # augment_with_simulated_masking) - see src/train.py's final-fit step.
 ANCHOR_AGE_COL = "months_since_anchor"
 
+# SPEI_12 prior-reading feature (src/features.py::compute_prior_reading), computed
+# unconditionally inside build_all_features. Never masked in Test.csv, so unlike
+# ANCHOR_AGE_COL it needs no masking-augmentation to be learnable.
+SPEI_12_COL = "SPEI_12_t"
+SPEI12_PRIOR_VALUE_COL = "spei12_prior_value"
+SPEI12_PRIOR_AGE_COL = "spei12_prior_age"
+SPEI12_DYNAMICS_FEATURE_COLS = [SPEI12_PRIOR_VALUE_COL, SPEI12_PRIOR_AGE_COL]
+
 # Zindi clarification (docs/chats/Neighbouring cells' past TWS - permitted or not.txt,
 # 19 Aug): raw coordinates, cell IDs and coordinate-derived encodings must never be fed
 # to the model as predictors. lat/lon may only be used as a lookup key (own-cell history,

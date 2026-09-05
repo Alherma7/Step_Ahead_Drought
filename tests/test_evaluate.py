@@ -134,7 +134,8 @@ def test_mask_aware_horizon_matched_split_produces_engineered_features_with_some
     rows = []
     for lat in [0.0, 1.0]:
         for i, t in enumerate(months):
-            rows.append({"lat": lat, "lon": 0.0, "time": t, "TWS_t": float(i + (0 if lat == 0.0 else 100))})
+            rows.append({"lat": lat, "lon": 0.0, "time": t,
+                         "TWS_t": float(i + (0 if lat == 0.0 else 100)), "SPEI_12_t": 0.0})
     raw = pd.DataFrame(rows)
 
     fit_df, val_df = mask_aware_horizon_matched_split(
@@ -157,7 +158,7 @@ def test_mask_augmented_horizon_matched_split_augments_both_fit_and_val():
     for lat in [0.0, 1.0]:
         for i, t in enumerate(months):
             rows.append({"lat": lat, "lon": 0.0, "time": t,
-                         "TWS_t": float(i + (0 if lat == 0.0 else 100))})
+                         "TWS_t": float(i + (0 if lat == 0.0 else 100)), "SPEI_12_t": 0.0})
     raw = pd.DataFrame(rows)
 
     fit_df, val_df = mask_augmented_horizon_matched_split(

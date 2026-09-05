@@ -9,6 +9,7 @@ from src.features import (
     build_all_features,
     build_spatial_adjacency,
     compute_anchor_age,
+    compute_prior_reading,
     fill_masked_tws,
     select_base_features,
 )
@@ -137,11 +138,14 @@ def test_add_neighbourhood_features_is_nan_for_an_isolated_cell():
 
 def _monthly_series(lat, lon, month_values):
     # month_values: list of (year, month, value) for a single (lat, lon) cell.
+    # SPEI_12_t is a placeholder constant here - build_all_features needs the column
+    # to exist (compute_prior_reading), but these tests don't exercise its values.
     return pd.DataFrame({
         "lat": [lat] * len(month_values),
         "lon": [lon] * len(month_values),
         "time": pd.to_datetime([f"{y}-{m:02d}-01" for y, m, _ in month_values]),
         "TWS_t": [v for _, _, v in month_values],
+        "SPEI_12_t": [0.0] * len(month_values),
     })
 
 
@@ -225,7 +229,7 @@ def test_build_all_features_adds_neighbourhood_and_climatology_columns():
     history_out, target_out = build_all_features(history, target)
 
     for col in ["tws_neighbour_mean", "tws_local_deviation", "tws_climatology_mean",
-                "tws_climatology_deviation"]:
+                "tws_climatology_deviation", "spei12_prior_value", "spei12_prior_age"]:
         assert col in history_out.columns
         assert col in target_out.columns
     # target's only row is its cell's 3rd January - climatology mean = mean(1.0, 3.0).
@@ -257,6 +261,61 @@ def test_compute_anchor_age_is_nan_with_no_history_at_all():
     age = compute_anchor_age(history, target)
 
     assert np.isnan(age.iloc[0])
+
+
+def _monthly_series_col(lat, lon, col, month_values):
+    return pd.DataFrame({
+        "lat": [lat] * len(month_values),
+        "lon": [lon] * len(month_values),
+        "time": pd.to_datetime([f"{y}-{m:02d}-01" for y, m, _ in month_values]),
+        col: [v for _, _, v in month_values],
+    })
+
+
+def test_compute_prior_reading_is_nan_for_the_first_observation():
+    history = _monthly_series_col(1.0, 1.0, "SPEI_12_t", [])
+    target = _monthly_series_col(1.0, 1.0, "SPEI_12_t", [(2020, 1, 5.0)])
+
+    prior_value, prior_age = compute_prior_reading(history, target, "SPEI_12_t")
+
+    assert np.isnan(prior_value.iloc[0])
+    assert np.isnan(prior_age.iloc[0])
+
+
+def test_compute_prior_reading_returns_the_previous_row_regardless_of_gap_size():
+    # cell has readings at Jan and May - May's "prior" is Jan's value, 4 months back,
+    # not NaN from a fixed-lag lookup (the calendar months in between are absent).
+    history = _monthly_series_col(1.0, 1.0, "SPEI_12_t", [(2020, 1, 1.0)])
+    target = _monthly_series_col(1.0, 1.0, "SPEI_12_t", [(2020, 5, 9.0)])
+
+    prior_value, prior_age = compute_prior_reading(history, target, "SPEI_12_t")
+
+    assert prior_value.iloc[0] == 1.0
+    assert prior_age.iloc[0] == 4
+
+
+def test_compute_prior_reading_never_uses_a_later_value():
+    history = _monthly_series_col(1.0, 1.0, "SPEI_12_t", [])
+    target = _monthly_series_col(1.0, 1.0, "SPEI_12_t", [(2020, 1, 1.0), (2020, 2, 2.0)])
+
+    prior_value, prior_age = compute_prior_reading(history, target, "SPEI_12_t")
+
+    assert np.isnan(prior_value.iloc[0])  # nothing precedes the first row
+    assert prior_value.iloc[1] == 1.0     # second row's prior is the first row
+    assert prior_age.iloc[1] == 1
+
+
+def test_compute_prior_reading_is_per_cell():
+    history = pd.concat([
+        _monthly_series_col(1.0, 1.0, "SPEI_12_t", [(2020, 1, 1.0)]),
+        _monthly_series_col(2.0, 2.0, "SPEI_12_t", [(2020, 3, 999.0)]),
+    ], ignore_index=True)
+    target = _monthly_series_col(1.0, 1.0, "SPEI_12_t", [(2020, 4, 5.0)])
+
+    prior_value, prior_age = compute_prior_reading(history, target, "SPEI_12_t")
+
+    assert prior_value.iloc[0] == 1.0  # unaffected by cell 2's more recent reading
+    assert prior_age.iloc[0] == 3
 
 
 def test_compute_anchor_age_is_per_cell():

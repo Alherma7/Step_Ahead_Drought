@@ -24,6 +24,16 @@ real leaderboard score, not the internal proxy, drove this graduation. The
 long-window trend feature explored in the same notebook was NOT graduated -
 confirmed negative result, worse standalone and worse combined with
 climatology on the real leaderboard (0.7834 and 0.7845 respectively).
+compute_prior_reading() graduated from notebooks/09_own_cell_dynamics.ipynb
+(P2) after a real Zindi leaderboard improvement using it on SPEI_12_t
+(0.7579 -> 0.755129 RMSE) - the internal proxy signal alone was small and
+seed-inconsistent (won 3/5 seeds), so this graduation was gated on the real
+submission, not the proxy (per user request, after the proxy-only "not
+graduated" call on this same candidate was challenged and then contradicted
+by the real score). Two other P2 candidates (soil-moisture prior/age: flat on the proxy; a
+SPEI_12 AR(1)-deviation escalation: lost on the proxy in 4/5 seeds) were not
+worth spending a real submission on and remain in that notebook only, not
+graduated - see RESOURCES.md/README.md for the full reasoning.
 """
 import numpy as np
 import pandas as pd
@@ -245,6 +255,46 @@ def compute_anchor_age(history_df: pd.DataFrame, target_df: pd.DataFrame) -> pd.
     return months_since.iloc[len(history_df):].reset_index(drop=True)
 
 
+def compute_prior_reading(
+    history_df: pd.DataFrame, target_df: pd.DataFrame, col: str
+) -> tuple[pd.Series, pd.Series]:
+    """For each target_df row, that cell's most recent STRICTLY EARLIER recorded
+    value of `col` and how many months ago it was recorded. Returns
+    (prior_value, prior_age), each a Series aligned to target_df's row order.
+
+    Generalises compute_anchor_age's "last available reading + elapsed time"
+    pattern to any never-masked own-cell column (e.g. SPEI_12_t) - unlike TWS_t,
+    these columns have no masked rows to anchor around, but still benefit from an
+    explicit recent-history signal. Uses df's own per-cell row order (not a fixed
+    calendar-month lookup): Test.csv's 18 months are not contiguous, so a literal
+    "value exactly k months ago" lookup is NaN for a majority of real rows (measured
+    directly: 72%/44% coverage for a 1-/3-month lookup) - this design instead
+    achieves ~99% coverage, reporting the true elapsed gap via prior_age so the
+    model can calibrate for staleness instead of assuming a fixed lag.
+
+    Source: notebooks/09_own_cell_dynamics.ipynb (P2) - validated for SPEI_12_t
+    against mask_augmented_horizon_matched_split (small, seed-inconsistent proxy
+    signal) and then confirmed on the real Zindi leaderboard: 0.7579 -> 0.755129
+    RMSE (~0.37% improvement), 2026-09-05.
+
+    df must contain every earlier observation for the cells being processed (e.g.
+    Train.csv concatenated with Test.csv) - sorts by (lat, lon, time) internally.
+    """
+    cols = [config.LAT_COL, config.LON_COL, config.TIME_COL, col]
+    combined = pd.concat([history_df[cols], target_df[cols]], ignore_index=True)
+    ordered = combined.sort_values([config.LAT_COL, config.LON_COL, config.TIME_COL]).copy()
+    g = ordered.groupby([config.LAT_COL, config.LON_COL])
+    ordered["_prior_value"] = g[col].shift(1)
+    prior_time = g[config.TIME_COL].shift(1)
+    ordered["_prior_age"] = (
+        (ordered[config.TIME_COL].dt.year - prior_time.dt.year) * 12
+        + (ordered[config.TIME_COL].dt.month - prior_time.dt.month)
+    )
+    prior_value = ordered["_prior_value"].reindex(combined.index).iloc[len(history_df):].reset_index(drop=True)
+    prior_age = ordered["_prior_age"].reindex(combined.index).iloc[len(history_df):].reset_index(drop=True)
+    return prior_value, prior_age
+
+
 def build_all_features(
     history_df: pd.DataFrame, target_df: pd.DataFrame
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -275,4 +325,15 @@ def build_all_features(
     combined = add_seasonal_climatology_features(combined)
     history_out = combined.iloc[:n_history].reset_index(drop=True)
     target_out = combined.iloc[n_history:].reset_index(drop=True)
+
+    history_prior_value, history_prior_age = compute_prior_reading(
+        history_df.iloc[:0], history_df, config.SPEI_12_COL
+    )
+    target_prior_value, target_prior_age = compute_prior_reading(
+        history_df, target_df, config.SPEI_12_COL
+    )
+    history_out[config.SPEI12_PRIOR_VALUE_COL] = history_prior_value.to_numpy()
+    history_out[config.SPEI12_PRIOR_AGE_COL] = history_prior_age.to_numpy()
+    target_out[config.SPEI12_PRIOR_VALUE_COL] = target_prior_value.to_numpy()
+    target_out[config.SPEI12_PRIOR_AGE_COL] = target_prior_age.to_numpy()
     return history_out, target_out

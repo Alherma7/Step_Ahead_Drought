@@ -11,6 +11,7 @@ def get_feature_cols(df) -> list[str]:
     cols = config.BASE_FEATURE_COLS + [c for c in config.OPTIONAL_FEATURE_COLS if c in available]
     cols += [c for c in config.NEIGHBOURHOOD_FEATURE_COLS if c in available]
     cols += [c for c in config.CLIMATOLOGY_FEATURE_COLS if c in available]
+    cols += [c for c in config.SPEI12_DYNAMICS_FEATURE_COLS if c in available]
     if config.ANCHOR_AGE_COL in available:
         cols.append(config.ANCHOR_AGE_COL)
     return cols

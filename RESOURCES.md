@@ -123,6 +123,34 @@ one of these in its docstring.
   `mask_augmented_horizon_matched_split`'s mean over 5 seeds as the primary
   proxy.
 
+- **`notebooks/09_own_cell_dynamics.ipynb`**
+  Why: P2 investigation - own-cell lag/rolling/AR(1) features on `SPEI_01/03/06/12_t`/
+  `SOIL_MOISTURE_t` (never masked in Test.csv, so gateable on the proxy alone per the
+  Gate policy). Found and fixed a coverage pitfall before building anything: a fixed
+  1-/3-month calendar lag only covers 72%/44% of real Test.csv rows (Test.csv's 18
+  months are not contiguous - some calendar months have zero rows for any cell in
+  Train+Test combined), which a naive notebook validated purely against Train.csv's
+  dense contiguous panel would not have caught (the same proxy-optimism risk already
+  hit twice in this project). Fixed via a `prior_value`/`prior_age` design (most
+  recent available reading + elapsed months), generalising `compute_anchor_age`'s
+  already-validated pattern - ~99% real coverage. Tested 3 candidates against
+  `mask_augmented_horizon_matched_split` (5-seed mean): soil-moisture prior+age
+  (flat, noise-level - not worth a real submission), SPEI_12 AR(1)-deviation (net
+  **loses**, 4/5 seeds worse - a `real-world-ml` ch07-style "classical model as
+  feature generator" escalation that backfired, since SPEI_12's near-unit-root AR(1)
+  coefficient ~0.93 left little room for the mean-reversion correction to help while
+  adding two more estimated quantities' noise - not worth a real submission either),
+  and SPEI_12 prior+age (~0.1% mean proxy improvement, only 3/5 seeds - initially
+  judged too weak given past proxy-vs-real divergences, but the user challenged that
+  call: the Gate policy's "proxy alone is enough for Tier-A features" shortcut had
+  only ever been validated on a *positive* verdict (climatology), never a
+  *negative*/weak one). **Real Zindi score on SPEI_12 prior+age: 0.755129 RMSE**
+  (beats the prior best 0.7579 by ~0.37%) - the weak proxy signal was real.
+  **Graduated**: `src/features.py::compute_prior_reading`, wired unconditionally into
+  `build_all_features` (project decision, 2026-09-05). The other two candidates
+  remain in the notebook only, not graduated and not real-submission-tested (their
+  proxy signal gave no reason to expect a different real-world outcome).
+
 ## Comparable projects
 
 - **DrivenData seasonal streamflow forecasting - winner write-up**
@@ -151,6 +179,20 @@ one of these in its docstring.
   source for `tws_climatology_mean` in `notebooks/06_long_horizon_features.ipynb`
   (each cell's mean `TWS_t` for the same calendar month in all strictly earlier
   years).
+
+- **Brink, Richards & Fetherolf, *Real-World Machine Learning* (Manning, 2017),
+  ch. 7 "Advanced Feature Engineering"** (`real-world-ml` skill)
+  Why: source of the **Classical Time-Series Feature Escalation** ladder (marginal
+  stats -> windowed stats/differences -> autocorrelation/Fourier -> classical model
+  fits as feature generators) used to structure
+  `notebooks/09_own_cell_dynamics.ipynb`'s P2 investigation, and of the
+  "point-process / time since last event" framing that justified the
+  `prior_value`/`prior_age` design once a fixed calendar lag was found to have poor
+  real-Test.csv coverage. Consulted only *after* the coverage problem was already
+  found empirically (2026-09-05) - the project's own retrospective note on that
+  ordering gap is in the README Progress log; going forward this citation step
+  should happen before writing candidate-feature code, per
+  `structuring-ml-projects` rule 3.
 
 ## Pending (add before use)
 
