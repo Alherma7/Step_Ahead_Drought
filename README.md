@@ -333,11 +333,26 @@ Run tests: `pytest`
       matters more than incremental feature work once the validation protocol
       is trustworthy. Must come after P0 (already done), or tuning would target
       the wrong (fresh-anchor) regime.
-- [ ] **P4 — external data phase**: Copernicus/ERA5 ingestion + per-feature
-      source-date audit. Lowest priority (highest effort: regridding to 1°,
-      per-row date audit, Zindi disclosure) but not droppable — also scores
-      under Phase 2's Innovation criterion (20%). `docs/rules.txt` constrains
-      the source: must be available within one month of acquisition (rules out
-      ERA5 final reanalysis; permits ERA5T/ERA5-Land near-real-time), and
-      AutoML tools (FLAML/TPOT/auto-sklearn) are banned — plain random search
-      over `HistGradientBoostingRegressor`'s params for P3 is fine.
+- [ ] **P4 — external data phase (ERA5), paused**: investigated the compliance
+      question 2026-09-05 (8 days before close). The 13 Aug organizer FAQ confirms
+      ERA5T/final-ERA5-as-documented-proxy for non-TWS variables (source date ≤ t) is
+      permitted for "historical validation" — safe on Train.csv today. But a live
+      check of zindi.world/discussions confirmed 4 follow-up questions (24-29 Aug,
+      plus a new one 4 Sep re: NASA GLDAS) asking to extend this explicitly to
+      Test.csv rows, or to cover other GDO products/climate indices, all still show
+      **0 answers** as of this check — not just missing from our local
+      `docs/chats/` archive. A competitor (`uzbtrust`, 31 Aug) independently
+      confirmed the same open gap while reporting ~0.70 RMSE using ERA5. Given this
+      project's established norm (other participants in this same challenge
+      explicitly wrote "treat as prohibited unless approved" when facing unanswered
+      scope questions — see `docs/chats/Question for the orginizers.txt`, `worries
+      questions.txt`) and two real prior disqualification-level leak incidents in
+      this challenge, **user decision: do not build ERA5 features for
+      Test.csv/submission until this is explicitly confirmed** — Train.csv-only
+      exploration remains fine if useful later, but P4 is paused, not started, and
+      P3 takes priority given the 8-day close. `docs/rules.txt` still constrains any
+      future external-data work: must be available within one month of acquisition
+      (rules out ERA5 final reanalysis for genuinely recent months; permits
+      ERA5T/ERA5-Land near-real-time), and AutoML tools (FLAML/TPOT/auto-sklearn) are
+      banned — plain random search over `HistGradientBoostingRegressor`'s params for
+      P3 is fine.
