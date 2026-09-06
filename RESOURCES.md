@@ -167,6 +167,37 @@ one of these in its docstring.
   learning rates where the exact stopping point matters more. **Not graduated** -
   `src/model.py` unchanged.
 
+- **`notebooks/11_manual_early_stopping.ipynb`**
+  Why: P3 retry - checked notebook 10's working hypothesis directly against
+  scikit-learn 1.7.2's actual source (`sklearn/ensemble/_hist_gradient_boosting/gradient_boosting.py`):
+  confirmed `HistGradientBoostingRegressor.fit()` draws a random IID
+  `train_test_split(..., shuffle=True)` holdout for early stopping when none is
+  supplied, and that this version accepts `X_val`/`y_val` (`versionadded:: 1.7`) to
+  override it. Implemented a manual, horizon-aware holdout (a second, chronological
+  `evaluate.time_train_val_split` carved out of the fit portion) and re-ran P3's exact
+  round-1 search space unchanged. Initially read as refuting the hypothesis (current
+  defaults lost 5/5 seeds under the manual fix, no candidate beat the baseline) - an
+  Opus-model review (project practice for key decisions, per the 2026-09-04 precedent)
+  found this confounded: the chronological inner split deletes the ~17 most recent
+  training months from the manual-ES arm only, which alone explains the observed loss
+  via the horizon effect this project already quantified in
+  `notebooks/05_leaderboard_gap_investigation.ipynb`, with no early-stopping
+  contribution required - the 5/5-seed uniformity is consistent with a *constant*
+  confound (identical chronological cut every seed), not a real, seed-varying effect.
+  The review pointed at a cleaner, confound-free fact already in the same run:
+  `current_defaults__default_es`'s `mean_n_iter=300` sits exactly at
+  `make_baseline_model()`'s `max_iter` ceiling in all 5 seeds - early stopping never
+  fires for production. Confirmed with two cheap follow-ups: refitting P3's actual
+  submitted round-2 candidate at `max_iter=1000` with default early stopping gave
+  `n_iter_=1000` (also its ceiling) - early stopping did not influence the one
+  candidate that was actually real-world tested either, so it is ruled out as P3's
+  inversion cause; and testing `early_stopping=False` (recovering the 10% of rows the
+  inert holdout was discarding, `max_iter=300` unchanged) gave a null result (0.7120
+  vs. 0.7117). **Not graduated** - `src/model.py` unchanged. P3's real proxy-real
+  inversion still has no confirmed explanation - leading suspect is a distribution
+  shift between the proxy's validation window and Test.csv's real 2016-2018 period,
+  not yet investigated.
+
 ## Comparable projects
 
 - **DrivenData seasonal streamflow forecasting - winner write-up**

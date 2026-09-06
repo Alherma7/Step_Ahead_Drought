@@ -271,6 +271,46 @@ Run tests: `pytest`
   very low learning rate the exact stopping point matters a lot, and the internal
   random split's signal may not transfer to Test.csv's real deployment distribution.
   **Not graduated** - `src/model.py` unchanged, logged as a negative result.
+- 2026-09-06 — **P3 retry (`notebooks/11_manual_early_stopping.ipynb`)**: tested P3's
+  working hypothesis directly - verified against scikit-learn 1.7.2's actual source
+  that `HistGradientBoostingRegressor`'s early stopping does draw a plain random IID
+  holdout (`train_test_split(..., shuffle=True)`) when none is supplied, and that this
+  sklearn version's `fit()` accepts `X_val`/`y_val` to override it. Implemented a
+  manual, horizon-aware early-stopping holdout (a second, chronological
+  `time_train_val_split` carved out of the fit portion) and re-ran P3's exact round-1
+  search space (same seed) against it. **Initial reading was wrong**: on a 5-seed
+  confirmation, `current_defaults` did lose to the default early-stopping baseline in
+  5/5 seeds (0.7176 vs 0.7117) and no searched candidate beat it (best: 0.7163) - this
+  was first logged as "hypothesis refuted." An Opus-model review (this project's
+  established practice for a key decision point, per the 2026-09-04 precedent) found
+  that comparison was **confounded**: the chronological inner split silently removes
+  the ~17 most recent training months from the manual-ES arm only (the default-ES arm
+  holds out a random 10% of *rows*, still spanning the full time range), so the
+  observed loss is explained by "17 fewer months of recent training data" alone,
+  without any contribution from the early-stopping mechanism - and the 5/5-seed
+  uniformity, which read as robust, is actually consistent with a *constant* confound
+  (the chronological cut is identical across all 5 seeds).
+  The review also found a cleaner, confound-free fact already sitting in the same
+  results: `current_defaults__default_es`'s `mean_n_iter=300` sits exactly at
+  `make_baseline_model()`'s `max_iter` ceiling in all 5 seeds - **early stopping never
+  fires for the production defaults**, so it cannot be responsible for anything in the
+  current pipeline. Two follow-up checks confirmed this cleanly: (1) refitting P3's
+  actual submitted round-2 candidate (`learning_rate=0.0039, max_depth=10,
+  min_samples_leaf=63, l2_regularization=0.239, max_leaf_nodes=48`) at `max_iter=1000`
+  with sklearn's default early stopping gave `n_iter_=1000` - also hit its ceiling
+  exactly, so early stopping did not influence the one candidate that was actually
+  real-world tested either. P3's real proxy-real inversion therefore still has no
+  confirmed explanation - the leading remaining suspect is a genuine distribution
+  shift between the proxy's validation window and Test.csv's real 2016-2018 period,
+  not yet investigated. (2) Since early stopping never triggers anyway,
+  `make_baseline_model()` silently discards 10% of training rows on a holdout that
+  never does anything useful; testing `early_stopping=False` (recovering those rows,
+  `max_iter=300` unchanged) gave a null result (mean 0.7120 vs. 0.7117) - not a
+  meaningful improvement, within noise. **Not graduated** - `src/model.py` unchanged.
+  Corrected takeaway: the *specific* nested-split procedure in this notebook loses
+  (data-deletion confound, not an early-stopping effect), the early-stopping mechanism
+  itself is now confirmed inert for both the production defaults and P3's actual
+  submitted candidate, and the true cause of P3's inversion remains an open question.
 
 ## Next steps
 
@@ -352,10 +392,27 @@ Run tests: `pytest`
       `notebooks/10_hyperparameter_tuning.ipynb`. Two rounds both found real proxy
       improvements (round 2's best: 0.7117 -> 0.7082, ~0.49%, 4/5 seeds) but a real
       Zindi submission on the best candidate scored **worse** (0.758156 vs. the
-      current best 0.755129) - a genuine proxy-real inversion, working hypothesis is
-      `HistGradientBoostingRegressor`'s internal `early_stopping` uses a random
-      (non-horizon-aware) holdout. **Not graduated** - `make_baseline_model` is
-      unchanged, still the original starter-notebook defaults.
+      current best 0.755129) - a genuine proxy-real inversion; initial working
+      hypothesis was `HistGradientBoostingRegressor`'s internal `early_stopping` using
+      a random (non-horizon-aware) holdout - **checked directly in P3 retry below and
+      ruled out**. **Not graduated** - `make_baseline_model` is unchanged, still the
+      original starter-notebook defaults.
+- [x] **P3 retry — early-stopping hypothesis, checked directly**: verified against
+      scikit-learn 1.7.2 source that early stopping does use a random IID holdout by
+      default, and that `X_val`/`y_val` can override it (`notebooks/11_manual_early_stopping.ipynb`).
+      A manual horizon-aware version of that holdout initially looked like it refuted
+      the hypothesis (lost 5/5 seeds) - an Opus-model review found that comparison
+      confounded the fix with deleting the ~17 most recent training months, and
+      pointed at a cleaner fact already in the results instead: `mean_n_iter=300` sits
+      exactly at the ceiling for the production defaults, meaning early stopping never
+      fires there at all. Confirmed early stopping also never fired for P3's actual
+      submitted candidate (`n_iter_=1000`, also its ceiling) - so the mechanism is
+      ruled out as P3's inversion cause for both cases that matter. A follow-up test
+      (`early_stopping=False`, recovering the 10% of rows the inert holdout was
+      discarding) gave a null result (0.7120 vs. 0.7117). **Not graduated** -
+      `src/model.py` unchanged. P3's real proxy-real inversion still has no confirmed
+      explanation; leading suspect is a distribution shift between the proxy's
+      validation window and Test.csv's real 2016-2018 period.
 - [ ] **P4 — external data phase (ERA5), paused**: investigated the compliance
       question 2026-09-05 (8 days before close). The 13 Aug organizer FAQ confirms
       ERA5T/final-ERA5-as-documented-proxy for non-TWS variables (source date ≤ t) is
