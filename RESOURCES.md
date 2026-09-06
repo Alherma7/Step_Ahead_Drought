@@ -198,6 +198,35 @@ one of these in its docstring.
   shift between the proxy's validation window and Test.csv's real 2016-2018 period,
   not yet investigated.
 
+- **`notebooks/12_native_missing_value_handling.ipynb`**
+  Why: P5 - reviewed Kaggle competition write-ups this session at user request (M5
+  Forecasting - Accuracy's 1st place solution by Yeonjun In; "Gradient Boosting
+  Explained - Ensemble Learning") for techniques this project's pipeline might be
+  missing. The most actionable finding: `make_baseline_model` ran every feature
+  through `SimpleImputer(strategy="median")` before fitting, discarding the "value
+  was missing" signal for `tws_neighbour_mean`/`tws_local_deviation`,
+  `tws_climatology_mean`/`tws_climatology_deviation`, and `spei12_prior_value`/
+  `spei12_prior_age` - all of which can be genuinely, informatively NaN (measured
+  directly on one fit split: `tws_climatology_deviation` 29.95% NaN,
+  `tws_climatology_mean` 19.03%, `tws_local_deviation`/`TWS_t`/`months_since_anchor`
+  ~8.1%, `tws_neighbour_mean` 3.92%, SPEI_12 priors 0.92% - far higher than expected
+  for the climatology columns). `HistGradientBoostingRegressor` has native
+  missing-value support (confirmed in this project's installed scikit-learn 1.7.2
+  source, `sklearn/ensemble/_hist_gradient_boosting/gradient_boosting.py`, class
+  docstring lines 1477-1483: "the tree grower learns at each split point whether
+  samples with missing values should go to the left or right child, based on the
+  potential gain" - explicitly inspired by LightGBM). Removing the imputer and
+  feeding the raw NaN-containing feature matrix directly won 3/5 seeds clearly on the
+  5-seed `mask_augmented_horizon_matched_split` proxy, within noise on the other 2
+  (mean 0.7117 -> 0.7101, ~0.23%) - a weak-but-consistent signal, the same shape as
+  P2's SPEI_12 prior-reading case, so checked with a real submission per this
+  project's established policy (`feedback_confirm_weak_proxy_signals_with_real_submission`-
+  type reasoning) rather than written off. **Real Zindi score: 0.753811 RMSE**,
+  beating the prior best (0.755129) by ~0.17% - unlike P3, the proxy's direction held
+  on the real leaderboard. **Graduated**: `src/model.py::make_baseline_model` now
+  returns a bare `HistGradientBoostingRegressor` (no `Pipeline`/`SimpleImputer`), the
+  new default pipeline.
+
 ## Comparable projects
 
 - **DrivenData seasonal streamflow forecasting - winner write-up**

@@ -13,12 +13,13 @@ practice project for **data visualization, GIS, regression, and feature engineer
 - Train: 2,154,021 rows (2002-05 to 2015-08). Test: 280,961 rows, 18 months, of which
   **~66.5% of `TWS_t` is masked** (see `TWS_t_masked` in Test.csv).
 - Leaderboard leader's score (reported 2026-09-03): **0.559 RMSE**.
-- **Best real submission so far: 0.7579 RMSE** (2026-09-04, masking-augmented
-  training + anchor-age feature — current default pipeline). First real
-  submission scored 0.7822 (2026-09-03) — see Progress log and
+- **Best real submission so far: 0.753811 RMSE** (2026-09-06, native missing-value
+  handling in `HistGradientBoostingRegressor` instead of median-imputing — current
+  default pipeline, `python -m src.train`). First real submission scored 0.7822
+  (2026-09-03) — see Progress log and
   `notebooks/05_leaderboard_gap_investigation.ipynb` for why that came in much
   worse than the internal validation number at the time (0.5994). Current
-  internal proxy metric (honest, mask-augmented): **mean 0.7126 RMSE over 5
+  internal proxy metric (honest, mask-augmented): **mean 0.7101 RMSE over 5
   masking realisations**, via `evaluate.mask_augmented_horizon_matched_split` —
   much closer to the real score than earlier proxies, but still not exact; see
   Progress log's 2026-09-04 entries for the full proxy history.
@@ -311,6 +312,30 @@ Run tests: `pytest`
   (data-deletion confound, not an early-stopping effect), the early-stopping mechanism
   itself is now confirmed inert for both the production defaults and P3's actual
   submitted candidate, and the true cause of P3's inversion remains an open question.
+- 2026-09-06 — **P5 (`notebooks/12_native_missing_value_handling.ipynb`)**: reviewed
+  Kaggle competition write-ups (M5 Forecasting - Accuracy's 1st place solution;
+  general GBM technique notebooks) for techniques this project might be missing, per
+  user request. Most promising, cheapest-to-test idea: `make_baseline_model()` ran
+  every feature through `SimpleImputer(median)` before fitting, discarding the "this
+  was missing" signal for `tws_neighbour_mean`/`tws_local_deviation` (NaN when no
+  observed neighbour that month), `tws_climatology_mean`/`tws_climatology_deviation`
+  (NaN for a cell's first occurrence of a calendar month - measured real rate: **30%**
+  for the deviation column, 19% for the mean, much higher than expected) and
+  `spei12_prior_value`/`spei12_prior_age` (NaN with no earlier reading) -
+  `HistGradientBoostingRegressor` has native missing-value support (confirmed in
+  scikit-learn 1.7.2's own docstring: the tree grower learns per split whether missing
+  values go left or right, based on potential gain - the same idea LightGBM/XGBoost
+  use). Tested removing the imputer entirely on the 5-seed proxy: won 3/5 seeds
+  clearly, within noise on the other 2 (mean 0.7117 -> 0.7101, ~0.23%) - a
+  weak-but-consistent signal, same shape as P2's SPEI_12 prior-reading case, so per
+  this project's established policy it was checked with a real submission rather than
+  written off. **Real Zindi score: 0.753811 RMSE** - beats the prior best (0.755129)
+  by ~0.17%, and unlike P3, the proxy's direction held on the real leaderboard.
+  **Graduated**: `src/model.py::make_baseline_model` now returns a bare
+  `HistGradientBoostingRegressor` (no `Pipeline`/`SimpleImputer`), `src/train.py`
+  unchanged otherwise since `features.select_base_features` already returns NaN
+  feature values as-is. `outputs/submission.csv` regenerated with this as the new
+  default pipeline.
 
 ## Next steps
 
@@ -436,3 +461,16 @@ Run tests: `pytest`
       ERA5T/ERA5-Land near-real-time), and AutoML tools (FLAML/TPOT/auto-sklearn) are
       banned — plain random search over `HistGradientBoostingRegressor`'s params for
       P3 is fine.
+- [x] **P5 — native missing-value handling**: reviewed Kaggle write-ups (M5
+      Forecasting - Accuracy 1st place solution, general GBM technique notebooks) for
+      techniques this project might be missing, per user request
+      (`notebooks/12_native_missing_value_handling.ipynb`). Found `make_baseline_model`
+      was median-imputing several features with genuine, informative missingness
+      (climatology deviation: 30% NaN, climatology mean: 19%, measured directly - much
+      higher than expected) instead of using `HistGradientBoostingRegressor`'s native
+      NaN support. 5-seed proxy showed a weak-but-consistent win (3/5 seeds clear,
+      0.7117 -> 0.7101) - checked with a real submission per this project's policy for
+      this signal shape. **Real Zindi score: 0.753811 RMSE**, beating the prior best
+      (0.755129) by ~0.17%, proxy direction held (unlike P3). **Graduated**:
+      `src/model.py::make_baseline_model` returns a bare `HistGradientBoostingRegressor`
+      (no `Pipeline`/`SimpleImputer`) - now the default pipeline.
