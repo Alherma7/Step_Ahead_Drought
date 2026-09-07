@@ -474,3 +474,24 @@ Run tests: `pytest`
       (0.755129) by ~0.17%, proxy direction held (unlike P3). **Graduated**:
       `src/model.py::make_baseline_model` returns a bare `HistGradientBoostingRegressor`
       (no `Pipeline`/`SimpleImputer`) - now the default pipeline.
+- [x] **P6 — model ensembling**: user found a comparable real-world winner repo
+      (DrivenData "Water Supply Forecast Rodeo") and asked whether anything
+      critical was missing; a background research pass confirmed the one
+      transferable, actionable gap was model ensembling (`forecast/1st`/`2nd
+      place` solutions there combine multiple model fits; this project had
+      never tried any form of ensembling). Two variants tested against
+      `mask_augmented_horizon_matched_split` (5-seed mean), both **confirmed
+      negative results, no real submission needed - neither graduated**:
+      (1) same-model seed-averaging (5 seeds of `HistGradientBoostingRegressor`
+      averaged): 0.7099 vs. single-model 0.7101 (-0.03%), 2/5 seeds; (2) a
+      genuine second model family, LightGBM (`src/model.py::make_lightgbm_model`,
+      `notebooks/13_two_model_ensemble.ipynb`), averaged with HistGBR: 0.7100
+      vs. 0.7101 (-0.01%), also 2/5 seeds - LightGBM standalone (0.7108) was
+      itself very slightly worse than HistGBR, so the two models' errors were
+      too correlated to average out anything. Likely explanation: the winning
+      solutions' ensemble diversity comes from training on genuinely different
+      feature sets/targets (a seasonal model + a monthly model), not from
+      feeding identical features to two similarly-tuned boosting libraries -
+      a bigger undertaking than either experiment attempted here, not pursued
+      given the ~5 days left before close. `src/train.py` unchanged;
+      `make_lightgbm_model`/`predict_ensemble` stay committed but unused.

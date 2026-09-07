@@ -229,6 +229,37 @@ one of these in its docstring.
 
 ## Comparable projects
 
+- **DrivenData "Water Supply Forecast Rodeo" - winner solutions repo**
+  (https://github.com/drivendataorg/water-supply-forecast-rodeo, commit
+  `7f152a028a764cdc06b18a14568fabde298ade3e` - a different DrivenData hydrology
+  competition: seasonal water-supply *volume* forecasting at specific
+  reservoir/gauge sites, not this project's global TWS grid, but a comparably
+  strict information-availability-constrained forecasting problem)
+  Why: motivated `src/model.py::make_lightgbm_model`/`predict_ensemble`
+  (notebooks/13_two_model_ensemble.ipynb, P6) - `forecast/1st place`'s solution
+  documentation combines two independently-trained CatBoost architectures via a
+  weighted average; `forecast/2nd place`'s documentation states removing their
+  ensemble and using a single model "would still have reasonable quality" -
+  i.e. confirms the ensemble contributes something beyond a single model, not
+  that it's load-bearing. Their z-score/"deviation" design (see the entry
+  below) was already independently adopted here (`tws_climatology_deviation`).
+  **Tested against `mask_augmented_horizon_matched_split` (5-seed mean): a
+  HistGradientBoostingRegressor + LightGBM ensemble (averaged predictions,
+  matched hyperparameters, identical features) scored 0.7100 vs. HistGBR alone
+  0.7101 (-0.01%), winning only 2/5 masking realisations - noise, not a signal
+  (LightGBM standalone, 0.7108, was itself very slightly worse than HistGBR, so
+  the two models' errors were too correlated to average out anything).
+  Confirmed negative result, no real submission needed. Not graduated** -
+  `src/train.py` unchanged; `make_lightgbm_model`/`predict_ensemble` stay
+  committed but unused. An earlier, even cheaper attempt (seed-averaging the
+  *same* HistGBR model 5x, no second model family) also failed to show a real
+  signal (2/5 seeds, -0.03%) before this two-model version was tried. Likely
+  explanation for both misses: the winning solutions' diversity comes from
+  training on genuinely different feature sets/targets (a seasonal model + a
+  monthly model), not from feeding identical features to two similarly-tuned
+  boosting libraries - a bigger undertaking than either experiment attempted
+  here, not pursued given the ~5 days left before close.
+
 - **DrivenData seasonal streamflow forecasting - winner write-up**
   (`docs/DrivenData - Seasonal streamflow forecasting winner writeup.pdf` - a
   different DrivenData hydrology competition, not this one)
