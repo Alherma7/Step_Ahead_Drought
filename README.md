@@ -12,8 +12,10 @@ practice project for **data visualization, GIS, regression, and feature engineer
   Innovation/practicality (20%).
 - Train: 2,154,021 rows (2002-05 to 2015-08). Test: 280,961 rows, 18 months, of which
   **~66.5% of `TWS_t` is masked** (see `TWS_t_masked` in Test.csv).
+- **Final result (competition closed): private RMSE 0.798169, public RMSE
+  0.755129.** The private split scored ~0.043 worse than the public one.
 - Leaderboard leader's score (reported 2026-09-03): **0.559 RMSE**.
-- **Best real submission so far: 0.753811 RMSE** (2026-09-06, native missing-value
+- **Best public submission during the competition: 0.753811 RMSE** (2026-09-06, native missing-value
   handling in `HistGradientBoostingRegressor` instead of median-imputing — current
   default pipeline, `python -m src.train`). First real submission scored 0.7822
   (2026-09-03) — see Progress log and
